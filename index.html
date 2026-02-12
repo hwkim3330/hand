@@ -314,7 +314,7 @@
 
         const SCALE = 3.0;
         const LERP = 0.5;
-        const ENABLE_HAND_MODEL = false;
+        const ENABLE_HAND_MODEL = true;
         const SLOT_LEFT = 0;
         const SLOT_RIGHT = 1;
         const SLOT_LABELS = ['Left', 'Right'];
@@ -572,14 +572,24 @@
         // ═══════════════════════════════════════════════════
         const MODEL_HAND_SIZE = 0.0745;
 
-        // Finger bones to drive: [boneName, fromLandmark, toLandmark]
-        // Note: GLTFLoader sanitizes names by removing dots
+        // Bone aliases: dotted names from Blender + sanitized fallback names.
         const FINGER_DEFS = [
-            ['finger_index01L', 5, 6],  ['finger_index02L', 6, 7],  ['finger_index03L', 7, 8],
-            ['finger_middle01L', 9, 10], ['finger_middle02L', 10, 11], ['finger_middle03L', 11, 12],
-            ['finger_ring01L', 13, 14],  ['finger_ring02L', 14, 15],  ['finger_ring03L', 15, 16],
-            ['finger_pinky01L', 17, 18], ['finger_pinky02L', 18, 19], ['finger_pinky03L', 19, 20],
-            ['thumb01L001', 0, 1], ['thumb01L', 1, 2], ['thumb02L', 2, 3], ['thumb03L', 3, 4],
+            { key: 'index1',  bones: ['finger_index.01.L',  'finger_index01L'],  fi: 5,  ti: 6,  maxA: 1.15 },
+            { key: 'index2',  bones: ['finger_index.02.L',  'finger_index02L'],  fi: 6,  ti: 7,  maxA: 1.30 },
+            { key: 'index3',  bones: ['finger_index.03.L',  'finger_index03L'],  fi: 7,  ti: 8,  maxA: 1.45 },
+            { key: 'middle1', bones: ['finger_middle.01.L', 'finger_middle01L'], fi: 9,  ti: 10, maxA: 1.15 },
+            { key: 'middle2', bones: ['finger_middle.02.L', 'finger_middle02L'], fi: 10, ti: 11, maxA: 1.30 },
+            { key: 'middle3', bones: ['finger_middle.03.L', 'finger_middle03L'], fi: 11, ti: 12, maxA: 1.45 },
+            { key: 'ring1',   bones: ['finger_ring.01.L',   'finger_ring01L'],   fi: 13, ti: 14, maxA: 1.15 },
+            { key: 'ring2',   bones: ['finger_ring.02.L',   'finger_ring02L'],   fi: 14, ti: 15, maxA: 1.30 },
+            { key: 'ring3',   bones: ['finger_ring.03.L',   'finger_ring03L'],   fi: 15, ti: 16, maxA: 1.45 },
+            { key: 'pinky1',  bones: ['finger_pinky.01.L',  'finger_pinky01L'],  fi: 17, ti: 18, maxA: 1.15 },
+            { key: 'pinky2',  bones: ['finger_pinky.02.L',  'finger_pinky02L'],  fi: 18, ti: 19, maxA: 1.30 },
+            { key: 'pinky3',  bones: ['finger_pinky.03.L',  'finger_pinky03L'],  fi: 19, ti: 20, maxA: 1.45 },
+            { key: 'thumb0',  bones: ['thumb.01.L.001',     'thumb01L001'],      fi: 0,  ti: 1,  maxA: 1.55 },
+            { key: 'thumb1',  bones: ['thumb.01.L',         'thumb01L'],         fi: 1,  ti: 2,  maxA: 1.55 },
+            { key: 'thumb2',  bones: ['thumb.02.L',         'thumb02L'],         fi: 2,  ti: 3,  maxA: 1.55 },
+            { key: 'thumb3',  bones: ['thumb.03.L',         'thumb03L'],         fi: 3,  ti: 4,  maxA: 1.55 },
         ];
 
         class HandInstance {
@@ -588,6 +598,7 @@
                 this.bones = {};
                 this.restQuats = {};
                 this.restDirs = {};
+                this.fingerBones = {};
                 this.baseScale = new THREE.Vector3(1, 1, 1);
                 this.baseQuat = new THREE.Quaternion();
                 this.restOffsetLocal = new THREE.Vector3();
@@ -612,7 +623,7 @@
                 if (skinMesh && skinMesh.skeleton) {
                     for (const bone of skinMesh.skeleton.bones) {
                         this.bones[bone.name] = bone;
-                        if (bone.name === 'handL') this.handLBone = bone;
+                        if (bone.name === 'hand.L' || bone.name === 'handL') this.handLBone = bone;
                     }
                     console.log('Found', skinMesh.skeleton.bones.length, 'bones');
                 }
@@ -626,18 +637,20 @@
                 this.handLBone.getWorldPosition(restHandWorld);
                 this.restOffsetLocal.copy(this.model.worldToLocal(restHandWorld));
 
-                for (const [boneName] of FINGER_DEFS) {
-                    const bone = this.bones[boneName];
+                for (const def of FINGER_DEFS) {
+                    const bone = def.bones.map(name => this.bones[name]).find(Boolean);
                     if (!bone) continue;
-                    this.restQuats[boneName] = bone.quaternion.clone();
+                    this.fingerBones[def.key] = bone;
+                    this.restQuats[def.key] = bone.quaternion.clone();
                     const childBone = bone.children.find(c => c.isBone);
                     if (childBone) {
-                        this.restDirs[boneName] = childBone.position.clone().normalize();
+                        this.restDirs[def.key] = childBone.position.clone().normalize();
                     } else {
                         // Tip bone: extend in same direction as parent→self
-                        this.restDirs[boneName] = bone.position.clone().normalize();
+                        this.restDirs[def.key] = bone.position.clone().normalize();
                     }
                 }
+                console.log('Finger bindings:', Object.keys(this.fingerBones).length, '/', FINGER_DEFS.length);
 
                 this.model.visible = false;
                 scene.add(this.model);
@@ -684,9 +697,9 @@
 
             _driveFingers(worldLms) {
                 // Reset to rest
-                for (const [bn] of FINGER_DEFS) {
-                    const b = this.bones[bn];
-                    if (b && this.restQuats[bn]) b.quaternion.copy(this.restQuats[bn]);
+                for (const def of FINGER_DEFS) {
+                    const b = this.fingerBones[def.key];
+                    if (b && this.restQuats[def.key]) b.quaternion.copy(this.restQuats[def.key]);
                 }
                 this.model.updateMatrixWorld(true);
 
@@ -699,11 +712,11 @@
                 const _axis = new THREE.Vector3(1, 0, 0);
                 const _targetQ = new THREE.Quaternion();
 
-                for (const [bn, fi, ti] of FINGER_DEFS) {
-                    const bone = this.bones[bn], rd = this.restDirs[bn];
-                    const restQ = this.restQuats[bn];
+                for (const def of FINGER_DEFS) {
+                    const bone = this.fingerBones[def.key], rd = this.restDirs[def.key];
+                    const restQ = this.restQuats[def.key];
                     if (!bone || !rd || !restQ || rd.lengthSq() < 1e-10) continue;
-                    const lf = worldLms[fi], lt = worldLms[ti];
+                    const lf = worldLms[def.fi], lt = worldLms[def.ti];
                     _tw.set(-(lt.x-lf.x), -(lt.y-lf.y), -(lt.z-lf.z));
                     if (_tw.lengthSq() < 1e-10) continue;
                     _tw.normalize();
@@ -717,7 +730,7 @@
                     _delta.setFromUnitVectors(_restDirParent, _tl);
 
                     // Clamp delta rotation to avoid skin explosions from noisy landmarks
-                    const maxA = bn.includes('thumb') ? 1.55 : (bn.includes('01') ? 1.15 : (bn.includes('02') ? 1.30 : 1.45));
+                    const maxA = def.maxA;
                     const w = THREE.MathUtils.clamp(_delta.w, -1, 1);
                     let angle = 2 * Math.acos(w);
                     if (angle > maxA) {
@@ -829,6 +842,85 @@
             document.getElementById('s-right-pinch').textContent = right.active ? formatPinch(right.metrics.pinch) : '--';
         }
 
+        const slotMemory = [
+            { wrist: null, age: 999 },
+            { wrist: null, age: 999 }
+        ];
+
+        function wristPoint(worldLms) {
+            const w = worldLms[0];
+            return { x: w.x, y: w.y, z: w.z };
+        }
+
+        function slotCost(det, slotIdx) {
+            let cost = 0;
+            const mem = slotMemory[slotIdx];
+
+            if (mem.wrist && mem.age < 10) {
+                cost += Math.min(2.8, dist3(mem.wrist, det.world[0]) * 22);
+            }
+
+            if (det.label && det.label !== SLOT_LABELS[slotIdx]) {
+                cost += 0.9;
+            }
+
+            cost -= det.score * 0.08;
+            return cost;
+        }
+
+        function normalizeToSlots(wls, nls, hds) {
+            const slots = [makeEmptySlot(SLOT_LABELS[SLOT_LEFT]), makeEmptySlot(SLOT_LABELS[SLOT_RIGHT])];
+            const detections = [];
+
+            for (let i = 0; i < wls.length; i++) {
+                detections.push({
+                    world: wls[i],
+                    norm: nls[i] || null,
+                    label: hds[i]?.label || null,
+                    score: hds[i]?.score ?? 0
+                });
+            }
+
+            detections.sort((a, b) => b.score - a.score);
+            const dets = detections.slice(0, 2);
+
+            if (dets.length === 1) {
+                const leftC = slotCost(dets[0], SLOT_LEFT);
+                const rightC = slotCost(dets[0], SLOT_RIGHT);
+                const idx = leftC <= rightC ? SLOT_LEFT : SLOT_RIGHT;
+                const d = dets[0];
+                slots[idx] = {
+                    label: SLOT_LABELS[idx], active: true, score: d.score,
+                    world: d.world, norm: d.norm, metrics: computeMetrics(d.world)
+                };
+            } else if (dets.length === 2) {
+                const c01 = slotCost(dets[0], SLOT_LEFT) + slotCost(dets[1], SLOT_RIGHT);
+                const c10 = slotCost(dets[1], SLOT_LEFT) + slotCost(dets[0], SLOT_RIGHT);
+                const pair = c01 <= c10 ? [dets[0], dets[1]] : [dets[1], dets[0]];
+
+                slots[SLOT_LEFT] = {
+                    label: 'Left', active: true, score: pair[0].score,
+                    world: pair[0].world, norm: pair[0].norm, metrics: computeMetrics(pair[0].world)
+                };
+                slots[SLOT_RIGHT] = {
+                    label: 'Right', active: true, score: pair[1].score,
+                    world: pair[1].world, norm: pair[1].norm, metrics: computeMetrics(pair[1].world)
+                };
+            }
+
+            for (let i = 0; i < 2; i++) {
+                if (slots[i].active) {
+                    slotMemory[i].wrist = wristPoint(slots[i].world);
+                    slotMemory[i].age = 0;
+                } else {
+                    slotMemory[i].age += 1;
+                    if (slotMemory[i].age > 12) slotMemory[i].wrist = null;
+                }
+            }
+
+            return slots;
+        }
+
         document.getElementById('load-step').textContent = 'Initializing MediaPipe...';
 
         const mpHands = new window.Hands({
@@ -851,25 +943,10 @@
                 }
             }
 
-            const slots = [makeEmptySlot(SLOT_LABELS[SLOT_LEFT]), makeEmptySlot(SLOT_LABELS[SLOT_RIGHT])];
             const wls = results.multiHandWorldLandmarks || [];
             const nls = results.multiHandLandmarks || [];
             const hds = results.multiHandedness || [];
-
-            for (let i = 0; i < wls.length; i++) {
-                const label = hds[i]?.label === 'Right' ? 'Right' : 'Left';
-                const slotIdx = label === 'Right' ? SLOT_RIGHT : SLOT_LEFT;
-                const score = hds[i]?.score ?? 0;
-
-                // Keep the strongest detection per side.
-                if (!slots[slotIdx].active || score >= slots[slotIdx].score) {
-                    slots[slotIdx].active = true;
-                    slots[slotIdx].score = score;
-                    slots[slotIdx].world = wls[i];
-                    slots[slotIdx].norm = nls[i] || null;
-                    slots[slotIdx].metrics = computeMetrics(wls[i]);
-                }
-            }
+            const slots = normalizeToSlots(wls, nls, hds);
 
             latestFrame = { slots };
             updateAnalyticsPanel(slots);
