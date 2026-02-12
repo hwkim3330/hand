@@ -195,12 +195,15 @@
     </div>
 
     <div id="panel-info" class="glass">
-        <h1><span class="accent">Hand</span> Tracking</h1>
+        <h1><span class="accent">Hand</span> Analytics</h1>
         <div class="stat-row"><span class="stat-label">FPS</span><span class="stat-value" id="s-fps">--</span></div>
         <div class="stat-row"><span class="stat-label">Hands</span><span class="stat-value" id="s-hands">0</span></div>
-        <div class="stat-row"><span class="stat-label">Confidence</span><span class="stat-value" id="s-conf">--</span></div>
-        <div class="stat-row"><span class="stat-label">Handedness</span><span class="stat-value" id="s-hand-type">--</span></div>
-        <div class="stat-row" id="depth-row" style="display:none"><span class="stat-label">Depth</span><span class="stat-value" id="s-depth">--</span></div>
+        <div class="stat-row"><span class="stat-label">Left Conf</span><span class="stat-value" id="s-left-conf">--</span></div>
+        <div class="stat-row"><span class="stat-label">Left Depth</span><span class="stat-value" id="s-left-depth">--</span></div>
+        <div class="stat-row"><span class="stat-label">Left Pinch</span><span class="stat-value" id="s-left-pinch">--</span></div>
+        <div class="stat-row"><span class="stat-label">Right Conf</span><span class="stat-value" id="s-right-conf">--</span></div>
+        <div class="stat-row"><span class="stat-label">Right Depth</span><span class="stat-value" id="s-right-depth">--</span></div>
+        <div class="stat-row"><span class="stat-label">Right Pinch</span><span class="stat-value" id="s-right-pinch">--</span></div>
     </div>
 
     <div id="gesture-display" class="glass"></div>
@@ -311,6 +314,10 @@
 
         const SCALE = 3.0;
         const LERP = 0.5;
+        const ENABLE_HAND_MODEL = false;
+        const SLOT_LEFT = 0;
+        const SLOT_RIGHT = 1;
+        const SLOT_LABELS = ['Left', 'Right'];
 
         // Palm mesh
         const PALM_VERTS = [0, 17, 13, 9, 5, 1];
@@ -737,9 +744,10 @@
                 console.log('Hand models loaded (2 instances)');
             }, undefined, err => console.warn('GLB load error:', err));
         }
-        loadHandModel();
+        if (ENABLE_HAND_MODEL) loadHandModel();
 
         function updateModel(worldLms, show, handIdx = 0, handednessLabel = null) {
+            if (!ENABLE_HAND_MODEL) return;
             if (handInstances[handIdx]) handInstances[handIdx].update(worldLms, show, handednessLabel);
         }
 
@@ -783,8 +791,43 @@
         const overlayCanvas = document.getElementById('overlay');
         const overlayCtx = overlayCanvas.getContext('2d');
 
-        let latestResults = null;
+        let latestFrame = { slots: [{ active: false }, { active: false }] };
         let fpsCount = 0, fpsTime = performance.now();
+
+        function makeEmptySlot(label) {
+            return { label, active: false, score: 0, world: null, norm: null, metrics: null };
+        }
+
+        function dist3(a, b) {
+            return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2);
+        }
+
+        function computeMetrics(worldLms) {
+            const w = worldLms[0];
+            const m9 = worldLms[9];
+            const ref = Math.max(1e-6, dist3(w, m9));
+            const pinch = dist3(worldLms[4], worldLms[8]) / ref;
+            const depth = Math.abs(w.z) * SCALE;
+            return { pinch, depth };
+        }
+
+        function formatPct(v) { return (v * 100).toFixed(0) + '%'; }
+        function formatDepthM(v) { return (v * 100).toFixed(0) + 'cm'; }
+        function formatPinch(v) { return v.toFixed(2); }
+
+        function updateAnalyticsPanel(slots) {
+            const activeCount = slots.filter(s => s.active).length;
+            document.getElementById('s-hands').textContent = activeCount;
+
+            const left = slots[SLOT_LEFT], right = slots[SLOT_RIGHT];
+            document.getElementById('s-left-conf').textContent = left.active ? formatPct(left.score) : '--';
+            document.getElementById('s-left-depth').textContent = left.active ? formatDepthM(left.metrics.depth) : '--';
+            document.getElementById('s-left-pinch').textContent = left.active ? formatPinch(left.metrics.pinch) : '--';
+
+            document.getElementById('s-right-conf').textContent = right.active ? formatPct(right.score) : '--';
+            document.getElementById('s-right-depth').textContent = right.active ? formatDepthM(right.metrics.depth) : '--';
+            document.getElementById('s-right-pinch').textContent = right.active ? formatPinch(right.metrics.pinch) : '--';
+        }
 
         document.getElementById('load-step').textContent = 'Initializing MediaPipe...';
 
@@ -797,8 +840,6 @@
         });
 
         mpHands.onResults(results => {
-            latestResults = results;
-
             overlayCanvas.width = results.image.width;
             overlayCanvas.height = results.image.height;
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -810,22 +851,37 @@
                 }
             }
 
-            const nh = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
-            document.getElementById('s-hands').textContent = nh;
-            if (nh > 0) {
-                const h = results.multiHandedness[0];
-                document.getElementById('s-conf').textContent = (h.score * 100).toFixed(0) + '%';
-                document.getElementById('s-hand-type').textContent = h.label;
-                setPipStatus('on', 'Tracking');
-            } else {
-                document.getElementById('s-conf').textContent = '--';
-                document.getElementById('s-hand-type').textContent = '--';
-                setPipStatus('off', 'No hand');
+            const slots = [makeEmptySlot(SLOT_LABELS[SLOT_LEFT]), makeEmptySlot(SLOT_LABELS[SLOT_RIGHT])];
+            const wls = results.multiHandWorldLandmarks || [];
+            const nls = results.multiHandLandmarks || [];
+            const hds = results.multiHandedness || [];
+
+            for (let i = 0; i < wls.length; i++) {
+                const label = hds[i]?.label === 'Right' ? 'Right' : 'Left';
+                const slotIdx = label === 'Right' ? SLOT_RIGHT : SLOT_LEFT;
+                const score = hds[i]?.score ?? 0;
+
+                // Keep the strongest detection per side.
+                if (!slots[slotIdx].active || score >= slots[slotIdx].score) {
+                    slots[slotIdx].active = true;
+                    slots[slotIdx].score = score;
+                    slots[slotIdx].world = wls[i];
+                    slots[slotIdx].norm = nls[i] || null;
+                    slots[slotIdx].metrics = computeMetrics(wls[i]);
+                }
             }
 
-            if (results.multiHandWorldLandmarks && results.multiHandWorldLandmarks.length > 0) {
-                showGesture(detectGesture(results.multiHandWorldLandmarks[0]));
-            } else { showGesture(null); }
+            latestFrame = { slots };
+            updateAnalyticsPanel(slots);
+
+            const primary = slots[SLOT_LEFT].active ? slots[SLOT_LEFT] : (slots[SLOT_RIGHT].active ? slots[SLOT_RIGHT] : null);
+            if (primary) {
+                showGesture(detectGesture(primary.world));
+                setPipStatus('on', 'Tracking');
+            } else {
+                showGesture(null);
+                setPipStatus('off', 'No hand');
+            }
 
             fpsCount++;
             const now = performance.now();
@@ -882,6 +938,15 @@
         const depthLabel = document.getElementById('depth-label');
         const depthRow = document.getElementById('depth-row');
 
+        if (!ENABLE_HAND_MODEL) {
+            document.querySelectorAll('.ctrl-btn[data-mode="model"], .ctrl-btn[data-mode="both"]').forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.45';
+                btn.style.cursor = 'not-allowed';
+                btn.title = 'Model mode disabled for stability';
+            });
+        }
+
         document.querySelectorAll('.ctrl-btn[data-toggle]').forEach(btn => {
             btn.addEventListener('click', () => {
                 btn.classList.toggle('active');
@@ -896,7 +961,7 @@
                     camGroup.visible = on;
                     depthBar.style.display = on ? 'block' : 'none';
                     depthLabel.style.display = on ? 'block' : 'none';
-                    depthRow.style.display = on ? 'flex' : 'none';
+                    if (depthRow) depthRow.style.display = on ? 'flex' : 'none';
                 }
             });
         });
@@ -909,34 +974,32 @@
             orbit.update();
 
             const showSkel = viewMode === 'skeleton' || viewMode === 'both';
-            const showMdl  = viewMode === 'model' || viewMode === 'both';
+            const showMdl  = ENABLE_HAND_MODEL && (viewMode === 'model' || viewMode === 'both');
 
-            if (latestResults && latestResults.multiHandWorldLandmarks) {
-                const wls = latestResults.multiHandWorldLandmarks;
-                const nls = latestResults.multiHandLandmarks;
-                const hds = latestResults.multiHandedness || [];
+            if (latestFrame && latestFrame.slots) {
+                const slots = latestFrame.slots;
+                let depthShown = false;
 
                 for (let i = 0; i < 2; i++) {
-                    if (i < wls.length) {
-                        const depth = hands3d[i].update(wls[i], nls ? nls[i] : null, {
+                    const slot = slots[i];
+                    if (slot && slot.active) {
+                        const depth = hands3d[i].update(slot.world, slot.norm, {
                             showSkeleton: showSkel, showPalm, camMode: showCam
                         });
-                        updateModel(wls[i], showMdl, i, hds[i] ? hds[i].label : null);
-                        if (i === 0 && showCam && depth !== null) {
+                        updateModel(slot.world, showMdl, i, slot.label);
+
+                        if (!depthShown && showCam && depth !== null) {
                             const pct = Math.min(100, Math.max(0, (depth / 0.45) * 100));
                             depthFill.style.height = pct + '%';
-                            document.getElementById('s-depth').textContent = (depth * 100).toFixed(0) + 'cm';
+                            depthShown = true;
                         }
                     } else {
                         hands3d[i].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
-                        updateModel(null, false, i);
+                        updateModel(null, false, i, null);
                     }
                 }
-            } else {
-                for (let i = 0; i < 2; i++) {
-                    hands3d[i].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
-                    updateModel(null, false, i);
-                }
+
+                if (!depthShown) depthFill.style.height = '0%';
             }
 
             // Resize
