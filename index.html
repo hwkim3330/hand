@@ -586,12 +586,10 @@
             }
 
             _setup() {
+                let skinMesh = null;
                 this.model.traverse(node => {
-                    if (node.isBone) {
-                        this.bones[node.name] = node;
-                        if (node.name === 'hand.L') this.handLBone = node;
-                    }
                     if (node.isSkinnedMesh) {
+                        skinMesh = node;
                         node.frustumCulled = false;
                         node.castShadow = true;
                         node.receiveShadow = true;
@@ -599,6 +597,15 @@
                         node.material.side = THREE.DoubleSide;
                     }
                 });
+
+                // Get bones from skeleton (more reliable than isBone traverse)
+                if (skinMesh && skinMesh.skeleton) {
+                    for (const bone of skinMesh.skeleton.bones) {
+                        this.bones[bone.name] = bone;
+                        if (bone.name === 'hand.L') this.handLBone = bone;
+                    }
+                    console.log('Found', skinMesh.skeleton.bones.length, 'bones via skeleton');
+                }
 
                 if (!this.handLBone) { console.warn('No hand.L bone'); return; }
 
