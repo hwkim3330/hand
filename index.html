@@ -621,28 +621,14 @@
                     if (childBone) {
                         this.restDirs[boneName] = childBone.position.clone().normalize();
                     } else {
-                        // Tip bone: approximate direction from bone position
-                        const dir = bone.position.clone().normalize();
-                        dir.applyQuaternion(bone.quaternion.clone().invert());
-                        this.restDirs[boneName] = dir;
+                        // Tip bone: extend in same direction as parent→self
+                        this.restDirs[boneName] = bone.position.clone().normalize();
                     }
                 }
 
                 this.model.visible = false;
                 scene.add(this.model);
-                // Also find MCP bone to verify hand size
-                const mcpBone = this.bones['finger_middle01L'];
-                if (mcpBone) {
-                    const mcpPos = new THREE.Vector3();
-                    mcpBone.getWorldPosition(mcpPos);
-                    const handPos = new THREE.Vector3();
-                    this.handLBone.getWorldPosition(handPos);
-                    const dist = handPos.distanceTo(mcpPos);
-                    console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)),
-                        'handSize:', dist.toFixed(4));
-                } else {
-                    console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)));
-                }
+                console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)));
             }
 
             update(worldLms, show) {
@@ -677,8 +663,7 @@
                 off.applyQuaternion(this.model.quaternion);
                 this.model.position.copy(wristPos).sub(off);
 
-                // Drive finger bones (disabled for debug - enable after model renders OK)
-                // this._driveFingers(worldLms);
+                this._driveFingers(worldLms);
             }
 
             _driveFingers(worldLms) {
@@ -695,13 +680,16 @@
 
                 for (const [bn, fi, ti] of FINGER_DEFS) {
                     const bone = this.bones[bn], rd = this.restDirs[bn];
-                    if (!bone || !rd) continue;
+                    if (!bone || !rd || rd.lengthSq() < 1e-10) continue;
                     const lf = worldLms[fi], lt = worldLms[ti];
                     _tw.set(-(lt.x-lf.x), -(lt.y-lf.y), -(lt.z-lf.z));
                     if (_tw.lengthSq() < 1e-10) continue;
                     _tw.normalize();
                     bone.parent.getWorldQuaternion(_pq);
                     _tl.copy(_tw).applyQuaternion(_pq.clone().invert());
+                    if (!isFinite(_tl.x) || !isFinite(_tl.y) || !isFinite(_tl.z)) continue;
+                    _tl.normalize();
+                    if (_tl.lengthSq() < 1e-10) continue;
                     bone.quaternion.setFromUnitVectors(rd, _tl);
                     bone.updateMatrixWorld(true);
                 }
