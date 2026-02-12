@@ -581,8 +581,10 @@
                 this.bones = {};
                 this.restQuats = {};
                 this.restDirs = {};
+                this.baseScale = new THREE.Vector3(1, 1, 1);
+                this.baseQuat = new THREE.Quaternion();
+                this.restOffsetLocal = new THREE.Vector3();
                 this.handLBone = null;
-                this.restOffset = new THREE.Vector3();
                 this._setup();
             }
 
@@ -610,8 +612,12 @@
 
                 if (!this.handLBone) { console.warn('No hand.L bone'); return; }
 
+                this.baseScale.copy(this.model.scale);
+                this.baseQuat.copy(this.model.quaternion);
                 this.model.updateMatrixWorld(true);
-                this.handLBone.getWorldPosition(this.restOffset);
+                const restHandWorld = new THREE.Vector3();
+                this.handLBone.getWorldPosition(restHandWorld);
+                this.restOffsetLocal.copy(this.model.worldToLocal(restHandWorld));
 
                 for (const [boneName] of FINGER_DEFS) {
                     const bone = this.bones[boneName];
@@ -628,7 +634,7 @@
 
                 this.model.visible = false;
                 scene.add(this.model);
-                console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)));
+                console.log('HandInstance ready, restOffsetLocal:', this.restOffsetLocal.toArray().map(v=>v.toFixed(4)));
             }
 
             update(worldLms, show) {
@@ -642,7 +648,7 @@
                 const hs = Math.sqrt((m9.x-w.x)**2+(m9.y-w.y)**2+(m9.z-w.z)**2) * SCALE;
                 const s = hs / MODEL_HAND_SIZE;
                 if (!isFinite(s) || s < 0.01 || s > 100) return;
-                this.model.scale.setScalar(s);
+                this.model.scale.copy(this.baseScale).multiplyScalar(s);
 
                 // Rotation
                 const fingersDir = new THREE.Vector3(-(m9.x-w.x),-(m9.y-w.y),-(m9.z-w.z));
@@ -653,13 +659,14 @@
                 sideDir.normalize();
                 const palmNormal = new THREE.Vector3().crossVectors(fingersDir, sideDir).normalize();
                 sideDir.crossVectors(palmNormal, fingersDir).normalize();
-                this.model.quaternion.setFromRotationMatrix(
+                const targetQuat = new THREE.Quaternion().setFromRotationMatrix(
                     new THREE.Matrix4().makeBasis(fingersDir, palmNormal.clone().negate(), sideDir)
                 );
+                this.model.quaternion.copy(targetQuat).multiply(this.baseQuat);
 
                 // Position: place hand.L at wrist landmark
                 const wristPos = new THREE.Vector3(-w.x*SCALE, -w.y*SCALE, -w.z*SCALE);
-                const off = this.restOffset.clone().multiplyScalar(s);
+                const off = this.restOffsetLocal.clone().multiply(this.model.scale);
                 off.applyQuaternion(this.model.quaternion);
                 this.model.position.copy(wristPos).sub(off);
 
@@ -677,10 +684,14 @@
                 const _pq = new THREE.Quaternion();
                 const _tw = new THREE.Vector3();
                 const _tl = new THREE.Vector3();
+                const _rq = new THREE.Quaternion();
+                const _delta = new THREE.Quaternion();
+                const _restDirParent = new THREE.Vector3();
 
                 for (const [bn, fi, ti] of FINGER_DEFS) {
                     const bone = this.bones[bn], rd = this.restDirs[bn];
-                    if (!bone || !rd || rd.lengthSq() < 1e-10) continue;
+                    const restQ = this.restQuats[bn];
+                    if (!bone || !rd || !restQ || rd.lengthSq() < 1e-10) continue;
                     const lf = worldLms[fi], lt = worldLms[ti];
                     _tw.set(-(lt.x-lf.x), -(lt.y-lf.y), -(lt.z-lf.z));
                     if (_tw.lengthSq() < 1e-10) continue;
@@ -690,7 +701,10 @@
                     if (!isFinite(_tl.x) || !isFinite(_tl.y) || !isFinite(_tl.z)) continue;
                     _tl.normalize();
                     if (_tl.lengthSq() < 1e-10) continue;
-                    bone.quaternion.setFromUnitVectors(rd, _tl);
+                    _rq.copy(restQ);
+                    _restDirParent.copy(rd).applyQuaternion(_rq).normalize();
+                    _delta.setFromUnitVectors(_restDirParent, _tl);
+                    bone.quaternion.copy(_delta.multiply(_rq));
                     bone.updateMatrixWorld(true);
                 }
             }
@@ -910,8 +924,9 @@
 
             // Resize
             const w = window.innerWidth, h = window.innerHeight;
-            if (canvas.width !== w * devicePixelRatio || canvas.height !== h * devicePixelRatio) {
-                renderer.setSize(w, h);
+            const dpr = renderer.getPixelRatio();
+            if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+                renderer.setSize(w, h, false);
                 camera.aspect = w / h;
                 camera.updateProjectionMatrix();
             }
