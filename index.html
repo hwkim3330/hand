@@ -315,9 +315,36 @@
         const SCALE = 3.0;
         const LERP = 0.5;
         const ENABLE_HAND_MODEL = true;
+
+        // Debug toggles for left-right mismatch issues
+        const MIRROR_WORLD_X = false;
+        const SWAP_HANDEDNESS = false;
+
         const SLOT_LEFT = 0;
         const SLOT_RIGHT = 1;
         const SLOT_LABELS = ['Left', 'Right'];
+
+        function worldSignX() { return MIRROR_WORLD_X ? 1 : -1; }
+        function mapWorldPoint(wl) {
+            return new THREE.Vector3(
+                worldSignX() * wl.x * SCALE,
+                -wl.y * SCALE,
+                -wl.z * SCALE
+            );
+        }
+        function mapWorldDelta(a, b) {
+            return new THREE.Vector3(
+                worldSignX() * (b.x - a.x),
+                -(b.y - a.y),
+                -(b.z - a.z)
+            );
+        }
+        function maybeSwapLabel(label) {
+            if (!SWAP_HANDEDNESS) return label;
+            if (label === 'Left') return 'Right';
+            if (label === 'Right') return 'Left';
+            return label;
+        }
 
         // Palm mesh
         const PALM_VERTS = [0, 17, 13, 9, 5, 1];
@@ -515,17 +542,18 @@
 
                     for (let i = 0; i < 21; i++) {
                         const wl = worldLms[i];
+                        const d = mapWorldDelta(ww, wl);
                         this.tgt[i].set(
-                            sx + (-(wl.x - ww.x)) * SCALE,
-                            sy + (-(wl.y - ww.y)) * SCALE,
-                            sz + (-(wl.z - ww.z)) * SCALE
+                            sx + d.x,
+                            sy + d.y,
+                            sz + d.z
                         );
                     }
                 } else {
                     // ── Center mode: world landmarks at origin ──
                     for (let i = 0; i < 21; i++) {
                         const wl = worldLms[i];
-                        this.tgt[i].set(-wl.x * SCALE, -wl.y * SCALE, -wl.z * SCALE);
+                        this.tgt[i].copy(mapWorldPoint(wl));
                     }
                 }
 
@@ -671,10 +699,10 @@
                 this.model.scale.copy(this.baseScale).multiplyScalar(s);
 
                 // Rotation
-                const fingersDir = new THREE.Vector3(-(m9.x-w.x),-(m9.y-w.y),-(m9.z-w.z));
+                const fingersDir = mapWorldDelta(w, m9);
                 if (fingersDir.lengthSq() < 1e-10) return;
                 fingersDir.normalize();
-                const sideDir = new THREE.Vector3(-(m5.x-m17.x),-(m5.y-m17.y),-(m5.z-m17.z));
+                const sideDir = mapWorldDelta(m17, m5);
                 if (sideDir.lengthSq() < 1e-10) return;
                 sideDir.normalize();
                 // Model is left-hand rig; flip lateral basis for right-hand detections
@@ -687,7 +715,7 @@
                 this.model.quaternion.copy(targetQuat).multiply(this.baseQuat);
 
                 // Position: place hand.L at wrist landmark
-                const wristPos = new THREE.Vector3(-w.x*SCALE, -w.y*SCALE, -w.z*SCALE);
+                const wristPos = mapWorldPoint(w);
                 const off = this.restOffsetLocal.clone().multiply(this.model.scale);
                 off.applyQuaternion(this.model.quaternion);
                 this.model.position.copy(wristPos).sub(off);
@@ -717,7 +745,7 @@
                     const restQ = this.restQuats[def.key];
                     if (!bone || !rd || !restQ || rd.lengthSq() < 1e-10) continue;
                     const lf = worldLms[def.fi], lt = worldLms[def.ti];
-                    _tw.set(-(lt.x-lf.x), -(lt.y-lf.y), -(lt.z-lf.z));
+                    _tw.copy(mapWorldDelta(lf, lt));
                     if (_tw.lengthSq() < 1e-10) continue;
                     _tw.normalize();
                     bone.parent.getWorldQuaternion(_pq);
@@ -876,7 +904,7 @@
                 detections.push({
                     world: wls[i],
                     norm: nls[i] || null,
-                    label: hds[i]?.label || null,
+                    label: maybeSwapLabel(hds[i]?.label || null),
                     score: hds[i]?.score ?? 0
                 });
             }
