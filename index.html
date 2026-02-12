@@ -566,12 +566,13 @@
         const MODEL_HAND_SIZE = 0.0745;
 
         // Finger bones to drive: [boneName, fromLandmark, toLandmark]
+        // Note: GLTFLoader sanitizes names by removing dots
         const FINGER_DEFS = [
-            ['finger_index.01.L', 5, 6],  ['finger_index.02.L', 6, 7],  ['finger_index.03.L', 7, 8],
-            ['finger_middle.01.L', 9, 10], ['finger_middle.02.L', 10, 11], ['finger_middle.03.L', 11, 12],
-            ['finger_ring.01.L', 13, 14],  ['finger_ring.02.L', 14, 15],  ['finger_ring.03.L', 15, 16],
-            ['finger_pinky.01.L', 17, 18], ['finger_pinky.02.L', 18, 19], ['finger_pinky.03.L', 19, 20],
-            ['thumb.01.L.001', 0, 1], ['thumb.01.L', 1, 2], ['thumb.02.L', 2, 3], ['thumb.03.L', 3, 4],
+            ['finger_index01L', 5, 6],  ['finger_index02L', 6, 7],  ['finger_index03L', 7, 8],
+            ['finger_middle01L', 9, 10], ['finger_middle02L', 10, 11], ['finger_middle03L', 11, 12],
+            ['finger_ring01L', 13, 14],  ['finger_ring02L', 14, 15],  ['finger_ring03L', 15, 16],
+            ['finger_pinky01L', 17, 18], ['finger_pinky02L', 18, 19], ['finger_pinky03L', 19, 20],
+            ['thumb01L001', 0, 1], ['thumb01L', 1, 2], ['thumb02L', 2, 3], ['thumb03L', 3, 4],
         ];
 
         class HandInstance {
@@ -602,10 +603,9 @@
                 if (skinMesh && skinMesh.skeleton) {
                     for (const bone of skinMesh.skeleton.bones) {
                         this.bones[bone.name] = bone;
-                        if (bone.name === 'hand.L') this.handLBone = bone;
+                        if (bone.name === 'handL') this.handLBone = bone;
                     }
-                    const boneNames = skinMesh.skeleton.bones.map(b => b.name);
-                    console.log('Found', boneNames.length, 'bones:', boneNames.join(', '));
+                    console.log('Found', skinMesh.skeleton.bones.length, 'bones');
                 }
 
                 if (!this.handLBone) { console.warn('No hand.L bone'); return; }
