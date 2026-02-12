@@ -630,7 +630,19 @@
 
                 this.model.visible = false;
                 scene.add(this.model);
-                console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(3)));
+                // Also find MCP bone to verify hand size
+                const mcpBone = this.bones['finger_middle01L'];
+                if (mcpBone) {
+                    const mcpPos = new THREE.Vector3();
+                    mcpBone.getWorldPosition(mcpPos);
+                    const handPos = new THREE.Vector3();
+                    this.handLBone.getWorldPosition(handPos);
+                    const dist = handPos.distanceTo(mcpPos);
+                    console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)),
+                        'handSize:', dist.toFixed(4));
+                } else {
+                    console.log('HandInstance ready, restOffset:', this.restOffset.toArray().map(v=>v.toFixed(4)));
+                }
             }
 
             update(worldLms, show) {
@@ -665,8 +677,8 @@
                 off.applyQuaternion(this.model.quaternion);
                 this.model.position.copy(wristPos).sub(off);
 
-                // Drive finger bones
-                this._driveFingers(worldLms);
+                // Drive finger bones (disabled for debug - enable after model renders OK)
+                // this._driveFingers(worldLms);
             }
 
             _driveFingers(worldLms) {
