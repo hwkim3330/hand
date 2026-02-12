@@ -604,7 +604,8 @@
                         this.bones[bone.name] = bone;
                         if (bone.name === 'hand.L') this.handLBone = bone;
                     }
-                    console.log('Found', skinMesh.skeleton.bones.length, 'bones via skeleton');
+                    const boneNames = skinMesh.skeleton.bones.map(b => b.name);
+                    console.log('Found', boneNames.length, 'bones:', boneNames.join(', '));
                 }
 
                 if (!this.handLBone) { console.warn('No hand.L bone'); return; }
