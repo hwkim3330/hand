@@ -198,6 +198,7 @@
         <h1><span class="accent">Hand</span> Analytics</h1>
         <div class="stat-row"><span class="stat-label">FPS</span><span class="stat-value" id="s-fps">--</span></div>
         <div class="stat-row"><span class="stat-label">Hands</span><span class="stat-value" id="s-hands">0</span></div>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value" id="s-model-mode">--</span></div>
         <div class="stat-row"><span class="stat-label">Left Conf</span><span class="stat-value" id="s-left-conf">--</span></div>
         <div class="stat-row"><span class="stat-label">Left Depth</span><span class="stat-value" id="s-left-depth">--</span></div>
         <div class="stat-row"><span class="stat-label">Left Pinch</span><span class="stat-value" id="s-left-pinch">--</span></div>
@@ -314,7 +315,12 @@
 
         const SCALE = 3.0;
         const LERP = 0.5;
-        const ENABLE_HAND_MODEL = true;
+
+        // Model strategy: 'auto' (try rigged then fallback), 'rigged', 'solid', 'off'
+        const MODEL_PROFILE = 'auto';
+        const ENABLE_HAND_MODEL = MODEL_PROFILE !== 'off';
+        const USE_RIGGED_MODEL = MODEL_PROFILE === 'auto' || MODEL_PROFILE === 'rigged';
+        const USE_SOLID_MODEL = MODEL_PROFILE === 'auto' || MODEL_PROFILE === 'solid';
 
         // Debug toggles for left-right mismatch issues
         const MIRROR_WORLD_X = false;
@@ -595,6 +601,118 @@
 
         const hands3d = [new Hand3D(), new Hand3D()];
 
+        class HandSolid {
+            constructor() {
+                this.group = new THREE.Group();
+                this.joints = [];
+                this.bones = [];
+                this.pos = Array.from({ length: 21 }, () => new THREE.Vector3());
+                this.tgt = Array.from({ length: 21 }, () => new THREE.Vector3());
+                this.ready = false;
+
+                const skinMat = new THREE.MeshStandardMaterial({
+                    color: 0xd7b395,
+                    roughness: 0.62,
+                    metalness: 0.02
+                });
+
+                for (let i = 0; i < 21; i++) {
+                    const m = new THREE.Mesh(
+                        new THREE.SphereGeometry(JOINT_R[i] * 1.35, 18, 18),
+                        skinMat.clone()
+                    );
+                    this.group.add(m);
+                    this.joints.push(m);
+                }
+
+                for (let ci = 0; ci < CONNECTIONS.length; ci++) {
+                    const [a, b] = CONNECTIONS[ci];
+                    const geo = new THREE.CylinderGeometry(1, 1, 1, 14);
+                    geo.translate(0, 0.5, 0);
+                    const m = new THREE.Mesh(geo, skinMat.clone());
+                    this.group.add(m);
+                    this.bones.push({ mesh: m, a, b, thickness: (BONE_THICKNESS[ci] || 0.004) * 2.2 });
+                }
+
+                const palmGeo = new THREE.BufferGeometry();
+                palmGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PALM_VERTS.length * 3), 3));
+                palmGeo.setIndex(PALM_TRIS);
+                this.palmMesh = new THREE.Mesh(palmGeo, new THREE.MeshStandardMaterial({
+                    color: 0xd7b395,
+                    roughness: 0.64,
+                    metalness: 0.02,
+                    transparent: true,
+                    opacity: 0.92,
+                    side: THREE.DoubleSide
+                }));
+                this.group.add(this.palmMesh);
+
+                this.group.visible = false;
+                scene.add(this.group);
+            }
+
+            update(worldLms, normLms, opts) {
+                const { show, camMode } = opts;
+                if (!worldLms || !show) { this.group.visible = false; return null; }
+                this.group.visible = true;
+
+                let estimatedDepth = 0;
+
+                if (camMode && normLms) {
+                    const wn = normLms[0];
+                    const ww = worldLms[0];
+                    const apparentSize = Math.sqrt(
+                        (normLms[0].x - normLms[9].x) ** 2 +
+                        (normLms[0].y - normLms[9].y) ** 2
+                    );
+                    const depthOff = Math.max(0.03, Math.min(apparentSize * 1.8, 0.45));
+                    estimatedDepth = depthOff;
+
+                    const sx = (0.5 - wn.x) * VP_W;
+                    const sy = (0.5 - wn.y) * VP_H;
+                    const sz = VP_Z + depthOff;
+
+                    for (let i = 0; i < 21; i++) {
+                        const wl = worldLms[i];
+                        const d = mapWorldDelta(ww, wl);
+                        this.tgt[i].set(sx + d.x, sy + d.y, sz + d.z);
+                    }
+                } else {
+                    for (let i = 0; i < 21; i++) this.tgt[i].copy(mapWorldPoint(worldLms[i]));
+                }
+
+                const f = this.ready ? LERP : 1.0;
+                for (let i = 0; i < 21; i++) {
+                    this.pos[i].lerp(this.tgt[i], f);
+                    this.joints[i].position.copy(this.pos[i]);
+                }
+                this.ready = true;
+
+                const _d = new THREE.Vector3();
+                const _up = new THREE.Vector3(0, 1, 0);
+                for (const b of this.bones) {
+                    _d.subVectors(this.pos[b.b], this.pos[b.a]);
+                    const len = _d.length();
+                    if (len < 1e-5) continue;
+                    b.mesh.position.copy(this.pos[b.a]);
+                    b.mesh.scale.set(b.thickness, len, b.thickness);
+                    b.mesh.quaternion.setFromUnitVectors(_up, _d.normalize());
+                }
+
+                const attr = this.palmMesh.geometry.attributes.position;
+                for (let i = 0; i < PALM_VERTS.length; i++) {
+                    const p = this.pos[PALM_VERTS[i]];
+                    attr.setXYZ(i, p.x, p.y, p.z);
+                }
+                attr.needsUpdate = true;
+                this.palmMesh.geometry.computeVertexNormals();
+
+                return estimatedDepth;
+            }
+        }
+
+        const solidHands = [new HandSolid(), new HandSolid()];
+
         // ═══════════════════════════════════════════════════
         //  3D HAND MODEL (skinned mesh, bone-driven fingers)
         // ═══════════════════════════════════════════════════
@@ -631,6 +749,8 @@
                 this.baseQuat = new THREE.Quaternion();
                 this.restOffsetLocal = new THREE.Vector3();
                 this.handLBone = null;
+                this.bindingCount = 0;
+                this.valid = false;
                 this._setup();
             }
 
@@ -678,7 +798,9 @@
                         this.restDirs[def.key] = bone.position.clone().normalize();
                     }
                 }
-                console.log('Finger bindings:', Object.keys(this.fingerBones).length, '/', FINGER_DEFS.length);
+                this.bindingCount = Object.keys(this.fingerBones).length;
+                this.valid = this.bindingCount >= 10;
+                console.log('Finger bindings:', this.bindingCount, '/', FINGER_DEFS.length);
 
                 this.model.visible = false;
                 scene.add(this.model);
@@ -775,21 +897,74 @@
         }
 
         const handInstances = [null, null];
+        let activeModelMode = 'none';
+
+        function setModelMode(mode) {
+            activeModelMode = mode;
+            const el = document.getElementById('s-model-mode');
+            if (el) el.textContent = mode.toUpperCase();
+            console.log('Active model mode:', mode);
+        }
 
         function loadHandModel() {
-            const loader = new GLTFLoader();
-            loader.load('models/hand.glb', (gltf) => {
-                handInstances[0] = new HandInstance(gltf.scene);
-                const clone = SkeletonUtils.clone(gltf.scene);
-                handInstances[1] = new HandInstance(clone);
-                console.log('Hand models loaded (2 instances)');
-            }, undefined, err => console.warn('GLB load error:', err));
-        }
-        if (ENABLE_HAND_MODEL) loadHandModel();
+            if (MODEL_PROFILE === 'off') {
+                setModelMode('none');
+                return;
+            }
+            if (!USE_RIGGED_MODEL) {
+                setModelMode(USE_SOLID_MODEL ? 'solid' : 'none');
+                return;
+            }
 
-        function updateModel(worldLms, show, handIdx = 0, handednessLabel = null) {
+            const loader = new GLTFLoader();
+            const candidates = ['models/hand-v2.glb', 'models/hand_simple.glb', 'models/hand.glb'];
+
+            const tryLoad = (idx) => {
+                if (idx >= candidates.length) {
+                    setModelMode(USE_SOLID_MODEL ? 'solid' : 'none');
+                    return;
+                }
+                const src = candidates[idx];
+                loader.load(src, (gltf) => {
+                    const a = new HandInstance(gltf.scene);
+                    const b = new HandInstance(SkeletonUtils.clone(gltf.scene));
+                    const ok = a.valid && b.valid;
+                    if (!ok) {
+                        console.warn('Rigged model rejected:', src, 'bindings', a.bindingCount, b.bindingCount);
+                        tryLoad(idx + 1);
+                        return;
+                    }
+                    handInstances[0] = a;
+                    handInstances[1] = b;
+                    setModelMode('rigged');
+                    console.log('Rigged model loaded from', src);
+                }, undefined, () => {
+                    tryLoad(idx + 1);
+                });
+            };
+
+            tryLoad(0);
+        }
+        loadHandModel();
+
+        function updateModel(worldLms, normLms, show, handIdx = 0, handednessLabel = null, camMode = false) {
             if (!ENABLE_HAND_MODEL) return;
-            if (handInstances[handIdx]) handInstances[handIdx].update(worldLms, show, handednessLabel);
+
+            if (!worldLms || !show) {
+                if (handInstances[handIdx]) handInstances[handIdx].update(null, false, handednessLabel);
+                if (solidHands[handIdx]) solidHands[handIdx].update(null, null, { show: false, camMode: false });
+                return;
+            }
+
+            if (activeModelMode === 'rigged' && handInstances[handIdx]) {
+                handInstances[handIdx].update(worldLms, true, handednessLabel);
+                if (solidHands[handIdx]) solidHands[handIdx].update(null, null, { show: false, camMode: false });
+                return;
+            }
+
+            if (USE_SOLID_MODEL && solidHands[handIdx]) {
+                solidHands[handIdx].update(worldLms, normLms, { show: true, camMode });
+            }
         }
 
         // ═══════════════════════════════════════════════════
@@ -1043,7 +1218,7 @@
         const depthLabel = document.getElementById('depth-label');
         const depthRow = document.getElementById('depth-row');
 
-        if (!ENABLE_HAND_MODEL) {
+        if (MODEL_PROFILE === 'off') {
             document.querySelectorAll('.ctrl-btn[data-mode="model"], .ctrl-btn[data-mode="both"]').forEach(btn => {
                 btn.disabled = true;
                 btn.style.opacity = '0.45';
@@ -1091,7 +1266,7 @@
                         const depth = hands3d[i].update(slot.world, slot.norm, {
                             showSkeleton: showSkel, showPalm, camMode: showCam
                         });
-                        updateModel(slot.world, showMdl, i, slot.label);
+                        updateModel(slot.world, slot.norm, showMdl, i, slot.label, showCam);
 
                         if (!depthShown && showCam && depth !== null) {
                             const pct = Math.min(100, Math.max(0, (depth / 0.45) * 100));
@@ -1100,7 +1275,7 @@
                         }
                     } else {
                         hands3d[i].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
-                        updateModel(null, false, i, null);
+                        updateModel(null, null, false, i, null, false);
                     }
                 }
 
