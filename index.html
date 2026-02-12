@@ -229,6 +229,8 @@
         <button class="ctrl-btn active" data-toggle="grid">Grid</button>
         <button class="ctrl-btn" data-toggle="palm">Palm</button>
         <button class="ctrl-btn" data-toggle="cam">Camera</button>
+        <button class="ctrl-btn" data-toggle="mirror">Mirror X</button>
+        <button class="ctrl-btn" data-toggle="swap">Swap L/R</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
@@ -323,8 +325,8 @@
         const USE_SOLID_MODEL = MODEL_PROFILE === 'auto' || MODEL_PROFILE === 'solid';
 
         // Debug toggles for left-right mismatch issues
-        const MIRROR_WORLD_X = false;
-        const SWAP_HANDEDNESS = false;
+        let MIRROR_WORLD_X = false;
+        let SWAP_HANDEDNESS = false;
 
         const SLOT_LEFT = 0;
         const SLOT_RIGHT = 1;
@@ -1242,6 +1244,12 @@
                     depthBar.style.display = on ? 'block' : 'none';
                     depthLabel.style.display = on ? 'block' : 'none';
                     if (depthRow) depthRow.style.display = on ? 'flex' : 'none';
+                } else if (btn.dataset.toggle === 'mirror') {
+                    MIRROR_WORLD_X = on;
+                    console.log('MIRROR_WORLD_X =', MIRROR_WORLD_X);
+                } else if (btn.dataset.toggle === 'swap') {
+                    SWAP_HANDEDNESS = on;
+                    console.log('SWAP_HANDEDNESS =', SWAP_HANDEDNESS);
                 }
             });
         });
