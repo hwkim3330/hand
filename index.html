@@ -4,180 +4,320 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Hand Tracking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a0a;
-            color: #fff;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #06080d;
+            color: #e2e8f0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             overflow: hidden;
-            height: 100vh;
+            height: 100dvh;
+            -webkit-font-smoothing: antialiased;
         }
-        #container { display: flex; height: 100vh; }
-        #video-section {
-            width: 35%;
-            min-width: 280px;
+
+        /* ── Loading ── */
+        #loading {
+            position: fixed; inset: 0;
+            background: #06080d;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease;
+        }
+        #loading.hidden { opacity: 0; pointer-events: none; }
+        .loader-ring {
+            width: 56px; height: 56px;
+            border: 3px solid rgba(96,165,250,0.12);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading h2 {
+            margin-top: 24px;
+            font-size: 18px; font-weight: 500;
+            color: #94a3b8;
+        }
+        #load-step {
+            margin-top: 8px;
+            font-size: 13px; color: #475569;
+        }
+
+        /* ── Canvas ── */
+        #three-canvas {
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        /* ── Glass panels ── */
+        .glass {
+            background: rgba(10, 15, 28, 0.78);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        /* ── Webcam PiP ── */
+        #webcam-pip {
+            position: fixed;
+            bottom: 20px; left: 20px;
+            width: 280px;
+            border-radius: 14px;
+            overflow: hidden;
+            z-index: 20;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        #webcam-pip:hover { transform: scale(1.02); }
+        #webcam-pip.minimized {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #webcam-pip.minimized video,
+        #webcam-pip.minimized canvas,
+        #webcam-pip.minimized .pip-badge { display: none; }
+        #webcam-pip.minimized::after {
+            content: '📹';
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            background: rgba(10,15,28,0.85);
+        }
+        .pip-wrap {
             position: relative;
+            aspect-ratio: 4/3;
             background: #111;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         #webcam {
             width: 100%; height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
+            display: block;
         }
         #overlay {
-            position: absolute;
-            top: 0; left: 0;
+            position: absolute; inset: 0;
             width: 100%; height: 100%;
             transform: scaleX(-1);
         }
-        #three-section {
-            flex: 1;
-            position: relative;
-            background: #0d1117;
-        }
-        #three-canvas { width: 100%; height: 100%; display: block; }
-        #status {
+        .pip-badge {
             position: absolute;
-            top: 12px; left: 12px;
-            background: rgba(0,0,0,0.65);
+            top: 8px; left: 8px;
+            background: rgba(0,0,0,0.55);
             backdrop-filter: blur(8px);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 12px;
-            z-index: 10;
-            display: flex; align-items: center; gap: 8px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex; align-items: center; gap: 6px;
         }
-        .dot {
-            width: 8px; height: 8px;
+        .pip-dot {
+            width: 7px; height: 7px;
             border-radius: 50%;
             flex-shrink: 0;
         }
-        .dot.green { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-        .dot.yellow { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
-        .dot.red { background: #f87171; box-shadow: 0 0 6px #f87171; }
-        #info {
+        .pip-dot.on { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+        .pip-dot.off { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+        .pip-dot.err { background: #f87171; box-shadow: 0 0 8px #f87171; }
+        .pip-toggle {
             position: absolute;
-            top: 12px; left: 12px;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(8px);
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-size: 13px;
-            line-height: 1.7;
-            z-index: 10;
-        }
-        #info span { color: #60a5fa; font-weight: 600; }
-        #controls {
-            position: absolute;
-            bottom: 16px; left: 50%;
-            transform: translateX(-50%);
-            display: flex; gap: 8px;
-            z-index: 10;
-        }
-        .btn {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.15);
-            color: #ccc;
-            padding: 7px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.2s;
-            user-select: none;
-        }
-        .btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        .btn.active {
-            background: rgba(96,165,250,0.2);
-            border-color: rgba(96,165,250,0.5);
-            color: #60a5fa;
-        }
-        #title {
-            position: absolute;
-            bottom: 16px; left: 12px;
-            font-size: 11px;
-            color: #555;
-            z-index: 10;
-        }
-        #loading {
-            position: fixed;
-            inset: 0;
-            background: #0a0a0a;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: opacity 0.6s;
-        }
-        .spinner {
-            width: 44px; height: 44px;
-            border: 3px solid rgba(255,255,255,0.08);
-            border-top-color: #60a5fa;
+            top: 8px; right: 8px;
+            width: 26px; height: 26px;
+            background: rgba(0,0,0,0.5);
+            border: none;
             border-radius: 50%;
-            animation: spin 0.7s linear infinite;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        #loading p { margin-top: 18px; color: #666; font-size: 14px; }
-        #gesture {
-            position: absolute;
-            top: 60px; left: 12px;
-            background: rgba(96,165,250,0.15);
-            border: 1px solid rgba(96,165,250,0.3);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 18px;
-            z-index: 10;
-            display: none;
+        .pip-toggle:hover { background: rgba(0,0,0,0.8); color: #fff; }
+
+        /* ── Info panel ── */
+        #panel-info {
+            position: fixed;
+            top: 20px; left: 20px;
+            padding: 16px 20px;
+            z-index: 20;
+            min-width: 180px;
         }
-        @media (max-width: 768px) {
-            #container { flex-direction: column; }
-            #video-section { width: 100%; height: 40%; min-width: auto; }
-            #three-section { height: 60%; }
+        #panel-info h1 {
+            font-size: 15px; font-weight: 600;
+            margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #panel-info h1 .accent { color: #60a5fa; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 12px;
+        }
+        .stat-label { color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { color: #e2e8f0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        /* ── Gesture ── */
+        #gesture-display {
+            position: fixed;
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            z-index: 20;
+            font-size: 20px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        #gesture-display.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Controls ── */
+        #panel-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%; transform: translateX(-50%);
+            padding: 8px 10px;
+            display: flex; gap: 6px;
+            z-index: 20;
+        }
+        .ctrl-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #64748b;
+            padding: 8px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .ctrl-btn:hover {
+            color: #e2e8f0;
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .ctrl-btn.active {
+            color: #60a5fa;
+            background: rgba(96,165,250,0.1);
+            border-color: rgba(96,165,250,0.3);
+        }
+        .ctrl-sep {
+            width: 1px;
+            background: rgba(255,255,255,0.08);
+            margin: 4px 4px;
+        }
+
+        /* ── Finger legend ── */
+        #legend {
+            position: fixed;
+            top: 20px; right: 20px;
+            padding: 14px 18px;
+            z-index: 20;
+        }
+        .legend-title {
+            font-size: 11px; font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 3px 0;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            #webcam-pip { width: 160px; bottom: 12px; left: 12px; }
+            #panel-info { top: 12px; left: 12px; padding: 12px 14px; }
+            #panel-info h1 { font-size: 13px; }
+            #legend { display: none; }
+            #panel-controls { bottom: 12px; }
+            .ctrl-btn { padding: 6px 12px; font-size: 11px; }
         }
     </style>
 </head>
 <body>
+    <!-- Loading -->
     <div id="loading">
-        <div class="spinner"></div>
-        <p>Loading Hand Tracking...</p>
+        <div class="loader-ring"></div>
+        <h2>3D Hand Tracking</h2>
+        <p id="load-step">Loading MediaPipe...</p>
     </div>
 
-    <div id="container">
-        <div id="video-section">
+    <!-- 3D Canvas (full-screen) -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Webcam PiP -->
+    <div id="webcam-pip">
+        <div class="pip-wrap">
             <video id="webcam" autoplay playsinline></video>
             <canvas id="overlay"></canvas>
-            <div id="status">
-                <div class="dot yellow"></div>
-                <span id="status-text">Initializing...</span>
+            <div class="pip-badge">
+                <div class="pip-dot off" id="pip-dot"></div>
+                <span id="pip-status">Starting...</span>
             </div>
-        </div>
-        <div id="three-section">
-            <canvas id="three-canvas"></canvas>
-            <div id="info">
-                <div>FPS: <span id="fps">--</span></div>
-                <div>Hands: <span id="hand-count">0</span></div>
-                <div>Confidence: <span id="confidence">--</span></div>
-            </div>
-            <div id="gesture"></div>
-            <div id="controls">
-                <button class="btn active" data-mode="skeleton">Skeleton</button>
-                <button class="btn" data-mode="mesh">3D Model</button>
-                <button class="btn active" data-toggle="grid">Grid</button>
-            </div>
-            <div id="title">MediaPipe + Three.js Hand Tracking</div>
+            <button class="pip-toggle" id="pip-min" title="Minimize">−</button>
         </div>
     </div>
 
-    <!-- MediaPipe Hands (classic API) -->
+    <!-- Info Panel -->
+    <div id="panel-info" class="glass">
+        <h1><span class="accent">Hand</span> Tracking</h1>
+        <div class="stat-row"><span class="stat-label">FPS</span><span class="stat-value" id="s-fps">--</span></div>
+        <div class="stat-row"><span class="stat-label">Hands</span><span class="stat-value" id="s-hands">0</span></div>
+        <div class="stat-row"><span class="stat-label">Confidence</span><span class="stat-value" id="s-conf">--</span></div>
+        <div class="stat-row"><span class="stat-label">Handedness</span><span class="stat-value" id="s-hand-type">--</span></div>
+    </div>
+
+    <!-- Gesture Display -->
+    <div id="gesture-display" class="glass"></div>
+
+    <!-- Finger Legend -->
+    <div id="legend" class="glass">
+        <div class="legend-title">Fingers</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Thumb</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ffa94d"></div>Index</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ffd43b"></div>Middle</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#69db7c"></div>Ring</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#74c0fc"></div>Pinky</div>
+    </div>
+
+    <!-- Controls -->
+    <div id="panel-controls" class="glass">
+        <button class="ctrl-btn active" data-mode="skeleton">Skeleton</button>
+        <button class="ctrl-btn" data-mode="model">3D Model</button>
+        <button class="ctrl-btn" data-mode="both">Both</button>
+        <div class="ctrl-sep"></div>
+        <button class="ctrl-btn active" data-toggle="grid">Grid</button>
+        <button class="ctrl-btn" data-toggle="palm">Palm</button>
+    </div>
+
+    <!-- MediaPipe (classic API) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
 
-    <!-- Three.js -->
     <script type="importmap">
     {
         "imports": {
@@ -192,19 +332,19 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-        // ============================================================
+        // ═══════════════════════════════════════════════════
         //  CONSTANTS
-        // ============================================================
+        // ═══════════════════════════════════════════════════
         const CONNECTIONS = [
-            [0,1],[1,2],[2,3],[3,4],         // thumb
-            [0,5],[5,6],[6,7],[7,8],         // index
-            [0,9],[9,10],[10,11],[11,12],    // middle
-            [0,13],[13,14],[14,15],[15,16],  // ring
-            [0,17],[17,18],[18,19],[19,20],  // pinky
-            [5,9],[9,13],[13,17],[0,17]      // palm
+            [0,1],[1,2],[2,3],[3,4],
+            [0,5],[5,6],[6,7],[7,8],
+            [0,9],[9,10],[10,11],[11,12],
+            [0,13],[13,14],[14,15],[15,16],
+            [0,17],[17,18],[18,19],[19,20],
+            [5,9],[9,13],[13,17],[0,17]
         ];
 
-        const MP_CONNECTIONS = [
+        const DRAW_CONNECTIONS = [
             [0,1],[1,2],[2,3],[3,4],
             [0,5],[5,6],[6,7],[7,8],
             [0,9],[9,10],[10,11],[11,12],
@@ -213,339 +353,393 @@
             [5,9],[9,13],[13,17]
         ];
 
-        const FINGER_COLORS = [
-            0xffffff,                                           // 0: wrist
-            0xff6b6b, 0xff6b6b, 0xff6b6b, 0xff6b6b,          // 1-4: thumb
-            0xffa94d, 0xffa94d, 0xffa94d, 0xffa94d,          // 5-8: index
-            0xffd43b, 0xffd43b, 0xffd43b, 0xffd43b,          // 9-12: middle
-            0x69db7c, 0x69db7c, 0x69db7c, 0x69db7c,          // 13-16: ring
-            0x74c0fc, 0x74c0fc, 0x74c0fc, 0x74c0fc           // 17-20: pinky
+        const COLORS = {
+            wrist:  0xadb5bd,
+            thumb:  0xff6b6b,
+            index:  0xffa94d,
+            middle: 0xffd43b,
+            ring:   0x69db7c,
+            pinky:  0x74c0fc,
+            palm:   0x94a3b8
+        };
+
+        function jointColor(i) {
+            if (i === 0) return COLORS.wrist;
+            if (i <= 4)  return COLORS.thumb;
+            if (i <= 8)  return COLORS.index;
+            if (i <= 12) return COLORS.middle;
+            if (i <= 16) return COLORS.ring;
+            return COLORS.pinky;
+        }
+
+        function boneColor(a, b) {
+            const hi = Math.max(a, b);
+            if (hi <= 4)  return COLORS.thumb;
+            if (hi <= 8)  return COLORS.index;
+            if (hi <= 12) return COLORS.middle;
+            if (hi <= 16) return COLORS.ring;
+            if (hi <= 20) return COLORS.pinky;
+            return COLORS.palm;
+        }
+
+        const JOINT_R = [
+            0.014,
+            0.010, 0.009, 0.007, 0.006,
+            0.010, 0.008, 0.006, 0.005,
+            0.010, 0.008, 0.006, 0.005,
+            0.009, 0.007, 0.006, 0.005,
+            0.008, 0.007, 0.005, 0.005
         ];
 
-        const JOINT_RADIUS = [
-            0.013,
-            0.009, 0.008, 0.007, 0.006,
-            0.009, 0.007, 0.006, 0.005,
-            0.009, 0.007, 0.006, 0.005,
-            0.008, 0.007, 0.006, 0.005,
-            0.007, 0.006, 0.005, 0.005
+        const BONE_THICKNESS = [
+            0.005, 0.004, 0.0035, 0.003,
+            0.005, 0.004, 0.0035, 0.003,
+            0.005, 0.004, 0.0035, 0.003,
+            0.005, 0.004, 0.0035, 0.003,
+            0.005, 0.004, 0.0035, 0.003,
+            0.004, 0.004, 0.004, 0.005
         ];
 
         const SCALE = 3.0;
-        const LERP_FACTOR = 0.45;
+        const LERP = 0.5;
 
-        // ============================================================
-        //  THREE.JS SETUP
-        // ============================================================
+        // Palm triangulation: landmark indices
+        const PALM_VERTS = [0, 17, 13, 9, 5, 1];
+        const PALM_TRIS  = [0,1,2, 0,2,3, 0,3,4, 0,4,5];
+
+        // ═══════════════════════════════════════════════════
+        //  THREE.JS SCENE
+        // ═══════════════════════════════════════════════════
         const canvas = document.getElementById('three-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMappingExposure = 1.1;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0d1117);
-        scene.fog = new THREE.FogExp2(0x0d1117, 1.2);
 
-        const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 50);
-        camera.position.set(0, 0.12, 0.55);
+        // Gradient background via large sphere
+        const bgGeo = new THREE.SphereGeometry(30, 32, 32);
+        const bgMat = new THREE.ShaderMaterial({
+            uniforms: {
+                colorTop:    { value: new THREE.Color(0x0f1729) },
+                colorBottom: { value: new THREE.Color(0x06080d) }
+            },
+            vertexShader: `
+                varying float vY;
+                void main() {
+                    vY = position.y;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 colorTop, colorBottom;
+                varying float vY;
+                void main() {
+                    float t = smoothstep(-30.0, 30.0, vY);
+                    gl_FragColor = vec4(mix(colorBottom, colorTop, t), 1.0);
+                }
+            `,
+            side: THREE.BackSide,
+            depthWrite: false
+        });
+        scene.add(new THREE.Mesh(bgGeo, bgMat));
 
-        const orbitControls = new OrbitControls(camera, canvas);
-        orbitControls.enableDamping = true;
-        orbitControls.dampingFactor = 0.08;
-        orbitControls.target.set(0, 0, 0);
-        orbitControls.minDistance = 0.1;
-        orbitControls.maxDistance = 3;
+        const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 60);
+        camera.position.set(0, 0.1, 0.6);
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0x334466, 0.6));
+        const orbit = new OrbitControls(camera, canvas);
+        orbit.enableDamping = true;
+        orbit.dampingFactor = 0.07;
+        orbit.target.set(0, 0, 0);
+        orbit.minDistance = 0.15;
+        orbit.maxDistance = 3;
 
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-        keyLight.position.set(3, 8, 5);
-        keyLight.castShadow = true;
-        keyLight.shadow.mapSize.set(1024, 1024);
-        scene.add(keyLight);
+        // ── Lighting ──
+        scene.add(new THREE.AmbientLight(0x2a3a5c, 0.7));
 
-        const fillLight = new THREE.DirectionalLight(0x6688cc, 0.5);
-        fillLight.position.set(-4, 2, -3);
-        scene.add(fillLight);
+        const key = new THREE.DirectionalLight(0xffffff, 2.0);
+        key.position.set(4, 8, 6);
+        key.castShadow = true;
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.near = 0.1;
+        key.shadow.camera.far = 30;
+        key.shadow.bias = -0.001;
+        scene.add(key);
 
-        const rimLight = new THREE.PointLight(0xff8855, 0.4, 10);
-        rimLight.position.set(0, -3, -5);
-        scene.add(rimLight);
+        const fill = new THREE.DirectionalLight(0x7799cc, 0.6);
+        fill.position.set(-5, 3, -4);
+        scene.add(fill);
 
-        // Grid
-        const grid = new THREE.GridHelper(2, 30, 0x222233, 0x181825);
-        grid.position.y = -0.2;
+        const rim = new THREE.PointLight(0xff7744, 0.4, 15);
+        rim.position.set(1, -4, -8);
+        scene.add(rim);
+
+        // ── Grid ──
+        const grid = new THREE.GridHelper(2.5, 40, 0x1a2035, 0x111828);
+        grid.position.y = -0.22;
         scene.add(grid);
 
-        // Ground plane (for shadow)
-        const groundGeo = new THREE.PlaneGeometry(4, 4);
-        const groundMat = new THREE.ShadowMaterial({ opacity: 0.15 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
+        const groundMat = new THREE.ShadowMaterial({ opacity: 0.12 });
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), groundMat);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.2;
+        ground.position.y = -0.22;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // ============================================================
-        //  HAND 3D SKELETON
-        // ============================================================
+        // ═══════════════════════════════════════════════════
+        //  HAND 3D
+        // ═══════════════════════════════════════════════════
         class Hand3D {
             constructor() {
                 this.group = new THREE.Group();
                 this.joints = [];
                 this.bones = [];
-                this.positions = new Array(21).fill(null).map(() => new THREE.Vector3());
-                this.targets = new Array(21).fill(null).map(() => new THREE.Vector3());
-                this.hasData = false;
+                this.pos = Array.from({ length: 21 }, () => new THREE.Vector3());
+                this.tgt = Array.from({ length: 21 }, () => new THREE.Vector3());
+                this.ready = false;
                 this.active = false;
 
                 // Joints
                 for (let i = 0; i < 21; i++) {
-                    const color = FINGER_COLORS[i];
-                    const geo = new THREE.SphereGeometry(JOINT_RADIUS[i], 20, 20);
-                    const mat = new THREE.MeshStandardMaterial({
-                        color,
-                        metalness: 0.35,
-                        roughness: 0.3,
-                        emissive: color,
-                        emissiveIntensity: 0.2
-                    });
-                    const mesh = new THREE.Mesh(geo, mat);
-                    mesh.castShadow = true;
-                    this.group.add(mesh);
-                    this.joints.push(mesh);
+                    const c = jointColor(i);
+                    const m = new THREE.Mesh(
+                        new THREE.SphereGeometry(JOINT_R[i], 24, 24),
+                        new THREE.MeshStandardMaterial({
+                            color: c, metalness: 0.25, roughness: 0.35,
+                            emissive: c, emissiveIntensity: 0.15
+                        })
+                    );
+                    m.castShadow = true;
+                    this.group.add(m);
+                    this.joints.push(m);
                 }
 
-                // Bones (cylinders)
-                for (const [a, b] of CONNECTIONS) {
-                    const color = this._boneColor(a, b);
-                    const geo = new THREE.CylinderGeometry(1, 1, 1, 8);
+                // Bones
+                for (let ci = 0; ci < CONNECTIONS.length; ci++) {
+                    const [a, b] = CONNECTIONS[ci];
+                    const c = boneColor(a, b);
+                    const geo = new THREE.CylinderGeometry(1, 1, 1, 10);
                     geo.translate(0, 0.5, 0);
-                    const mat = new THREE.MeshStandardMaterial({
-                        color,
-                        metalness: 0.2,
-                        roughness: 0.45,
-                        emissive: color,
-                        emissiveIntensity: 0.1
-                    });
-                    const mesh = new THREE.Mesh(geo, mat);
-                    mesh.castShadow = true;
-                    this.group.add(mesh);
-                    this.bones.push({ mesh, a, b });
+                    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+                        color: c, metalness: 0.15, roughness: 0.5,
+                        emissive: c, emissiveIntensity: 0.08
+                    }));
+                    m.castShadow = true;
+                    this.group.add(m);
+                    this.bones.push({ mesh: m, a, b, thickness: BONE_THICKNESS[ci] || 0.004 });
                 }
+
+                // Palm mesh
+                const palmGeo = new THREE.BufferGeometry();
+                const palmPos = new Float32Array(PALM_VERTS.length * 3);
+                palmGeo.setAttribute('position', new THREE.BufferAttribute(palmPos, 3));
+                palmGeo.setIndex(PALM_TRIS);
+                this.palmMesh = new THREE.Mesh(palmGeo, new THREE.MeshStandardMaterial({
+                    color: 0x94a3b8,
+                    metalness: 0.1,
+                    roughness: 0.6,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                }));
+                this.palmMesh.visible = false;
+                this.group.add(this.palmMesh);
 
                 this.group.visible = false;
                 scene.add(this.group);
             }
 
-            _boneColor(a, b) {
-                const hi = Math.max(a, b);
-                if (hi <= 4) return 0xff6b6b;
-                if (hi <= 8) return 0xffa94d;
-                if (hi <= 12) return 0xffd43b;
-                if (hi <= 16) return 0x69db7c;
-                if (hi <= 20) return 0x74c0fc;
-                return 0x888888;
-            }
-
-            update(worldLandmarks) {
-                if (!worldLandmarks) {
+            update(wl, showSkeleton, showPalm) {
+                if (!wl) {
                     this.active = false;
                     this.group.visible = false;
                     return;
                 }
 
                 this.active = true;
-                this.group.visible = true;
+                this.group.visible = showSkeleton;
 
-                // Set targets from landmarks
                 for (let i = 0; i < 21; i++) {
-                    const lm = worldLandmarks[i];
-                    this.targets[i].set(
-                        -lm.x * SCALE,
-                        -lm.y * SCALE,
-                        -lm.z * SCALE
-                    );
+                    this.tgt[i].set(-wl[i].x * SCALE, -wl[i].y * SCALE, -wl[i].z * SCALE);
                 }
 
-                // Lerp positions
-                const factor = this.hasData ? LERP_FACTOR : 1.0;
+                const f = this.ready ? LERP : 1.0;
                 for (let i = 0; i < 21; i++) {
-                    this.positions[i].lerp(this.targets[i], factor);
-                    this.joints[i].position.copy(this.positions[i]);
+                    this.pos[i].lerp(this.tgt[i], f);
+                    this.joints[i].position.copy(this.pos[i]);
                 }
-                this.hasData = true;
+                this.ready = true;
 
-                // Update bone cylinders
-                const _dir = new THREE.Vector3();
+                const _d = new THREE.Vector3();
                 const _up = new THREE.Vector3(0, 1, 0);
-                for (const bone of this.bones) {
-                    const from = this.positions[bone.a];
-                    const to = this.positions[bone.b];
-                    _dir.subVectors(to, from);
-                    const len = _dir.length();
-                    if (len < 0.0001) continue;
-
-                    const radius = 0.003;
-                    bone.mesh.position.copy(from);
-                    bone.mesh.scale.set(radius, len, radius);
-                    bone.mesh.quaternion.setFromUnitVectors(_up, _dir.normalize());
+                for (const b of this.bones) {
+                    _d.subVectors(this.pos[b.b], this.pos[b.a]);
+                    const len = _d.length();
+                    if (len < 1e-5) continue;
+                    b.mesh.position.copy(this.pos[b.a]);
+                    b.mesh.scale.set(b.thickness, len, b.thickness);
+                    b.mesh.quaternion.setFromUnitVectors(_up, _d.normalize());
                 }
-            }
 
-            setVisible(v) {
-                if (this.active) this.group.visible = v;
+                // Palm
+                this.palmMesh.visible = showPalm && showSkeleton;
+                if (showPalm) {
+                    const attr = this.palmMesh.geometry.attributes.position;
+                    for (let i = 0; i < PALM_VERTS.length; i++) {
+                        const p = this.pos[PALM_VERTS[i]];
+                        attr.setXYZ(i, p.x, p.y, p.z);
+                    }
+                    attr.needsUpdate = true;
+                    this.palmMesh.geometry.computeVertexNormals();
+                }
             }
         }
 
         const hands3d = [new Hand3D(), new Hand3D()];
 
-        // ============================================================
+        // ═══════════════════════════════════════════════════
         //  FBX MODEL
-        // ============================================================
+        // ═══════════════════════════════════════════════════
         let fbxModel = null;
-        let fbxSkeleton = null;
-        let fbxBoneMap = {};
-        let showModel = false;
+        let fbxReady = false;
 
-        const BONE_FINGER_MAP = {
-            thumb:  { indices: [[0,1],[1,2],[2,3],[3,4]], patterns: [/thumb/i] },
-            index:  { indices: [[5,6],[6,7],[7,8]],       patterns: [/index/i] },
-            middle: { indices: [[9,10],[10,11],[11,12]],   patterns: [/middle|mid/i] },
-            ring:   { indices: [[13,14],[14,15],[15,16]],  patterns: [/ring/i] },
-            pinky:  { indices: [[17,18],[18,19],[19,20]],  patterns: [/pinky|little/i] }
-        };
+        function loadFBX() {
+            const mgr = new THREE.LoadingManager();
+            mgr.setURLModifier(url => {
+                // FBX stores texture names at same dir level. Fix path + space in "HAND_N .jpg"
+                const m = url.match(/(HAND_\w+?)(%20)?\.jpg$/i);
+                if (m) return `models/textures/${m[1]}.jpg`;
+                return url;
+            });
 
-        function loadFBXModel() {
-            const loader = new FBXLoader();
+            const loader = new FBXLoader(mgr);
             loader.load('models/rigged_hand.fbx',
-                (object) => {
-                    object.scale.setScalar(0.003);
-                    object.visible = false;
-
-                    const bones = [];
-                    object.traverse((child) => {
-                        if (child.isBone) {
-                            bones.push(child);
-                            fbxBoneMap[child.name.toLowerCase()] = child;
-                        }
+                (obj) => {
+                    obj.scale.setScalar(0.003);
+                    obj.visible = false;
+                    obj.traverse(child => {
                         if (child.isMesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(m => { m.metalness = 0.15; m.roughness = 0.55; });
+                                } else {
+                                    child.material.metalness = 0.15;
+                                    child.material.roughness = 0.55;
+                                }
+                            }
                         }
                     });
-
-                    console.log('FBX bones:', bones.map(b => b.name));
-                    fbxModel = object;
-                    fbxSkeleton = bones;
+                    fbxModel = obj;
+                    fbxReady = true;
                     scene.add(fbxModel);
+                    console.log('FBX model loaded');
                 },
                 undefined,
-                (err) => console.warn('FBX load error (non-critical):', err)
+                err => console.warn('FBX load error (non-critical):', err)
             );
         }
 
-        loadFBXModel();
+        loadFBX();
 
-        function updateFBXFromLandmarks(worldLandmarks) {
-            if (!fbxModel || !worldLandmarks) {
-                if (fbxModel) fbxModel.visible = false;
-                return;
-            }
-            if (!showModel) {
-                fbxModel.visible = false;
-                return;
-            }
+        function updateFBX(wl, show) {
+            if (!fbxModel) return;
+            if (!wl || !show) { fbxModel.visible = false; return; }
 
             fbxModel.visible = true;
 
-            // Position model at wrist
-            const wrist = worldLandmarks[0];
-            const middle_mcp = worldLandmarks[9];
-            fbxModel.position.set(
-                -wrist.x * SCALE,
-                -wrist.y * SCALE,
-                -wrist.z * SCALE
-            );
+            // Position at wrist
+            const w = wl[0], m9 = wl[9], m17 = wl[17], m5 = wl[5];
+            fbxModel.position.set(-w.x * SCALE, -w.y * SCALE, -w.z * SCALE);
 
-            // Orient model: palm direction
-            const palmDir = new THREE.Vector3(
-                -(middle_mcp.x - wrist.x),
-                -(middle_mcp.y - wrist.y),
-                -(middle_mcp.z - wrist.z)
+            // Orientation: palm up direction + palm normal
+            const up = new THREE.Vector3(
+                -(m9.x - w.x), -(m9.y - w.y), -(m9.z - w.z)
             ).normalize();
-            const up = new THREE.Vector3(0, 1, 0);
-            const quat = new THREE.Quaternion().setFromUnitVectors(up, palmDir);
-            fbxModel.quaternion.copy(quat);
+            const side = new THREE.Vector3(
+                -(m5.x - m17.x), -(m5.y - m17.y), -(m5.z - m17.z)
+            ).normalize();
+            const normal = new THREE.Vector3().crossVectors(up, side).normalize();
+            side.crossVectors(normal, up).normalize();
+
+            const mat4 = new THREE.Matrix4().makeBasis(side, up, normal);
+            fbxModel.quaternion.setFromRotationMatrix(mat4);
+
+            // Scale to match hand size
+            const handSize = Math.sqrt(
+                (m9.x - w.x) ** 2 + (m9.y - w.y) ** 2 + (m9.z - w.z) ** 2
+            );
+            const s = (handSize * SCALE) / 0.33;
+            fbxModel.scale.setScalar(0.003 * s);
         }
 
-        // ============================================================
+        // ═══════════════════════════════════════════════════
         //  GESTURE RECOGNITION
-        // ============================================================
-        function detectGesture(landmarks) {
-            if (!landmarks) return null;
+        // ═══════════════════════════════════════════════════
+        const gestureEl = document.getElementById('gesture-display');
+        let gestureTimeout = null;
 
-            const wrist = landmarks[0];
+        function detectGesture(wl) {
+            if (!wl) return null;
+            const w = wl[0];
             const tips = [4, 8, 12, 16, 20];
             const pips = [3, 6, 10, 14, 18];
+            const d = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
 
-            // Check if fingers are extended
-            const extended = tips.map((tip, i) => {
-                const pip = pips[i];
-                const tipDist = dist3d(landmarks[tip], wrist);
-                const pipDist = dist3d(landmarks[pip], wrist);
-                return tipDist > pipDist * 1.1;
-            });
+            const ext = tips.map((t, i) => d(wl[t], w) > d(wl[pips[i]], w) * 1.12);
+            const n = ext.filter(Boolean).length;
 
-            const extCount = extended.filter(Boolean).length;
+            if (n === 5) return "\u270b Open";
+            if (n === 0) return "\u270a Fist";
+            if (ext[0] && n === 1) return "\ud83d\udc4d Thumbs Up";
+            if (!ext[0] && ext[1] && ext[2] && !ext[3] && !ext[4]) return "\u270c\ufe0f Peace";
+            if (!ext[0] && ext[1] && !ext[2] && !ext[3] && !ext[4]) return "\u261d\ufe0f Point";
+            if (!ext[0] && ext[1] && !ext[2] && !ext[3] && ext[4]) return "\ud83e\udd1f Rock";
 
-            // Open palm
-            if (extCount === 5) return "\u270B Open";
-            // Fist
-            if (extCount === 0) return "\u270a Fist";
-            // Thumbs up
-            if (extended[0] && extCount === 1) return "\ud83d\udc4d Thumbs Up";
-            // Peace
-            if (!extended[0] && extended[1] && extended[2] && !extended[3] && !extended[4])
-                return "\u270c\ufe0f Peace";
-            // Point
-            if (!extended[0] && extended[1] && !extended[2] && !extended[3] && !extended[4])
-                return "\u261d\ufe0f Point";
-            // Rock
-            if (!extended[0] && extended[1] && !extended[2] && !extended[3] && extended[4])
-                return "\ud83e\udd1f Rock";
-            // OK
-            const thumbIndexDist = dist3d(landmarks[4], landmarks[8]);
-            const palmSize = dist3d(landmarks[0], landmarks[9]);
-            if (thumbIndexDist < palmSize * 0.3 && extended[2] && extended[3] && extended[4])
-                return "\ud83d\udc4c OK";
+            const thumbIdx = d(wl[4], wl[8]);
+            const palmSize = d(w, wl[9]);
+            if (thumbIdx < palmSize * 0.28 && ext[2] && ext[3] && ext[4]) return "\ud83d\udc4c OK";
 
             return null;
         }
 
-        function dist3d(a, b) {
-            return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2);
+        function showGesture(g) {
+            if (!g) {
+                if (!gestureTimeout) {
+                    gestureTimeout = setTimeout(() => {
+                        gestureEl.classList.remove('show');
+                        gestureTimeout = null;
+                    }, 600);
+                }
+                return;
+            }
+            clearTimeout(gestureTimeout);
+            gestureTimeout = null;
+            gestureEl.textContent = g;
+            gestureEl.classList.add('show');
         }
 
-        // ============================================================
-        //  MEDIAPIPE SETUP
-        // ============================================================
+        // ═══════════════════════════════════════════════════
+        //  MEDIAPIPE
+        // ═══════════════════════════════════════════════════
         const videoEl = document.getElementById('webcam');
         const overlayCanvas = document.getElementById('overlay');
         const overlayCtx = overlayCanvas.getContext('2d');
-        const gestureEl = document.getElementById('gesture');
 
         let latestResults = null;
-        let frameCount = 0;
-        let lastFpsTime = performance.now();
+        let fpsCount = 0;
+        let fpsTime = performance.now();
+
+        document.getElementById('load-step').textContent = 'Initializing MediaPipe...';
 
         const mpHands = new window.Hands({
-            locateFile: (file) =>
-                `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
+            locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
         });
 
         mpHands.setOptions({
@@ -555,7 +749,7 @@
             minTrackingConfidence: 0.5
         });
 
-        mpHands.onResults((results) => {
+        mpHands.onResults(results => {
             latestResults = results;
 
             // Draw overlay
@@ -565,131 +759,141 @@
 
             if (results.multiHandLandmarks) {
                 for (const lms of results.multiHandLandmarks) {
-                    window.drawConnectors(overlayCtx, lms, MP_CONNECTIONS, {
-                        color: 'rgba(100,180,255,0.5)', lineWidth: 2
+                    window.drawConnectors(overlayCtx, lms, DRAW_CONNECTIONS, {
+                        color: 'rgba(96,165,250,0.45)', lineWidth: 2
                     });
                     window.drawLandmarks(overlayCtx, lms, {
-                        color: 'rgba(255,255,255,0.7)', lineWidth: 1, radius: 3
+                        color: 'rgba(255,255,255,0.65)', lineWidth: 1, radius: 2
                     });
                 }
             }
 
-            // Status
-            const numHands = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
-            document.getElementById('hand-count').textContent = numHands;
+            // Stats
+            const nh = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
+            document.getElementById('s-hands').textContent = nh;
 
-            if (numHands > 0) {
-                const conf = (results.multiHandedness[0].score * 100).toFixed(0);
-                document.getElementById('confidence').textContent = conf + '%';
-                setStatus('green', `Tracking ${numHands} hand${numHands > 1 ? 's' : ''}`);
+            if (nh > 0) {
+                const h = results.multiHandedness[0];
+                document.getElementById('s-conf').textContent = (h.score * 100).toFixed(0) + '%';
+                document.getElementById('s-hand-type').textContent = h.label === 'Right' ? 'Right' : 'Left';
+                setPipStatus('on', 'Tracking');
             } else {
-                document.getElementById('confidence').textContent = '--';
-                setStatus('yellow', 'No hand detected');
+                document.getElementById('s-conf').textContent = '--';
+                document.getElementById('s-hand-type').textContent = '--';
+                setPipStatus('off', 'No hand');
             }
 
             // Gesture
             if (results.multiHandWorldLandmarks && results.multiHandWorldLandmarks.length > 0) {
-                const g = detectGesture(results.multiHandWorldLandmarks[0]);
-                if (g) {
-                    gestureEl.textContent = g;
-                    gestureEl.style.display = 'block';
-                } else {
-                    gestureEl.style.display = 'none';
-                }
+                showGesture(detectGesture(results.multiHandWorldLandmarks[0]));
             } else {
-                gestureEl.style.display = 'none';
+                showGesture(null);
             }
 
             // FPS
-            frameCount++;
+            fpsCount++;
             const now = performance.now();
-            if (now - lastFpsTime >= 1000) {
-                document.getElementById('fps').textContent = frameCount;
-                frameCount = 0;
-                lastFpsTime = now;
+            if (now - fpsTime >= 1000) {
+                document.getElementById('s-fps').textContent = fpsCount;
+                fpsCount = 0;
+                fpsTime = now;
             }
         });
 
-        // Start camera
-        const mpCamera = new window.Camera(videoEl, {
-            onFrame: async () => {
-                await mpHands.send({ image: videoEl });
-            },
+        // Camera
+        document.getElementById('load-step').textContent = 'Requesting camera...';
+
+        const mpCam = new window.Camera(videoEl, {
+            onFrame: async () => { await mpHands.send({ image: videoEl }); },
             width: 640,
             height: 480
         });
 
-        mpCamera.start().then(() => {
-            setStatus('green', 'Camera ready');
-            hideLoading();
-        }).catch((err) => {
+        mpCam.start().then(() => {
+            setPipStatus('on', 'Ready');
+            const ld = document.getElementById('loading');
+            ld.classList.add('hidden');
+            setTimeout(() => ld.remove(), 800);
+        }).catch(err => {
             console.error('Camera error:', err);
-            setStatus('red', 'Camera access denied');
-            hideLoading();
+            setPipStatus('err', 'Camera denied');
+            document.getElementById('load-step').textContent = 'Camera access denied. Please allow camera.';
         });
 
-        // ============================================================
-        //  UI HELPERS
-        // ============================================================
-        function setStatus(color, text) {
-            document.querySelector('#status .dot').className = `dot ${color}`;
-            document.getElementById('status-text').textContent = text;
+        // ═══════════════════════════════════════════════════
+        //  UI CONTROLS
+        // ═══════════════════════════════════════════════════
+        function setPipStatus(cls, text) {
+            const dot = document.getElementById('pip-dot');
+            dot.className = 'pip-dot ' + cls;
+            document.getElementById('pip-status').textContent = text;
         }
 
-        function hideLoading() {
-            const el = document.getElementById('loading');
-            el.style.opacity = '0';
-            setTimeout(() => el.style.display = 'none', 600);
-        }
+        // PiP minimize
+        document.getElementById('pip-min').addEventListener('click', () => {
+            document.getElementById('webcam-pip').classList.toggle('minimized');
+        });
+        document.getElementById('webcam-pip').addEventListener('click', function(e) {
+            if (this.classList.contains('minimized')) this.classList.remove('minimized');
+        });
 
-        // Controls
+        // View mode
         let viewMode = 'skeleton';
+        let showPalm = false;
+        let showGrid = true;
 
-        document.querySelectorAll('#controls .btn[data-mode]').forEach(btn => {
+        document.querySelectorAll('.ctrl-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('#controls .btn[data-mode]').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.ctrl-btn[data-mode]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 viewMode = btn.dataset.mode;
-                showModel = viewMode === 'mesh';
             });
         });
 
-        document.querySelector('#controls .btn[data-toggle="grid"]').addEventListener('click', function() {
-            this.classList.toggle('active');
-            grid.visible = this.classList.contains('active');
-            ground.visible = grid.visible;
+        document.querySelectorAll('.ctrl-btn[data-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const on = btn.classList.contains('active');
+                if (btn.dataset.toggle === 'grid') {
+                    showGrid = on;
+                    grid.visible = on;
+                    ground.visible = on;
+                } else if (btn.dataset.toggle === 'palm') {
+                    showPalm = on;
+                }
+            });
         });
 
-        // ============================================================
-        //  ANIMATION LOOP
-        // ============================================================
+        // ═══════════════════════════════════════════════════
+        //  RENDER LOOP
+        // ═══════════════════════════════════════════════════
         function animate() {
             requestAnimationFrame(animate);
-            orbitControls.update();
+            orbit.update();
 
-            // Update 3D hands
+            const showSkel = viewMode === 'skeleton' || viewMode === 'both';
+            const showMdl  = viewMode === 'model' || viewMode === 'both';
+
             if (latestResults && latestResults.multiHandWorldLandmarks) {
+                const wls = latestResults.multiHandWorldLandmarks;
                 for (let i = 0; i < 2; i++) {
-                    if (i < latestResults.multiHandWorldLandmarks.length) {
-                        const wl = latestResults.multiHandWorldLandmarks[i];
-                        hands3d[i].update(wl);
-                        hands3d[i].setVisible(viewMode === 'skeleton');
-
-                        if (i === 0) updateFBXFromLandmarks(wl);
+                    if (i < wls.length) {
+                        hands3d[i].update(wls[i], showSkel, showPalm);
+                        if (i === 0) updateFBX(wls[i], showMdl);
                     } else {
-                        hands3d[i].update(null);
+                        hands3d[i].update(null, false, false);
                     }
                 }
+                if (wls.length === 0) updateFBX(null, false);
             } else {
-                hands3d[0].update(null);
-                hands3d[1].update(null);
-                if (fbxModel) fbxModel.visible = false;
+                hands3d[0].update(null, false, false);
+                hands3d[1].update(null, false, false);
+                updateFBX(null, false);
             }
 
             // Resize
-            const rect = canvas.parentElement.getBoundingClientRect();
-            const w = rect.width;
-            const h = rect.height;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
             if (canvas.width !== w * devicePixelRatio || canvas.height !== h * devicePixelRatio) {
                 renderer.setSize(w, h);
                 camera.aspect = w / h;
