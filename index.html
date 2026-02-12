@@ -243,7 +243,7 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         // ═══════════════════════════════════════════════════
         //  CONSTANTS
@@ -560,59 +560,153 @@
         const hands3d = [new Hand3D(), new Hand3D()];
 
         // ═══════════════════════════════════════════════════
-        //  FBX MODEL
+        //  GLTF MODEL + BONE DRIVING
         // ═══════════════════════════════════════════════════
-        let fbxModel = null;
+        let handModel = null;
+        let boneMap = {};
+        let restBoneData = {};
+        let handMeshes = { L: null, R: null };
 
-        function loadFBX() {
-            const mgr = new THREE.LoadingManager();
-            mgr.setURLModifier(url => {
-                // FBX stores texture paths with literal space: "HAND_N .jpg"
-                // Match both literal space and %20 encoded space
-                const m = url.match(/(HAND_\w+?)(?:\s|%20)?\.jpg$/i);
-                if (m) return `models/textures/${m[1]}.jpg`;
-                return url;
-            });
+        // Bone name → [fromLandmark, toLandmark] for each finger
+        const FINGER_BONES = {
+            L: {
+                thumb:  [['thumb.01.L',1,2],['thumb.02.L',2,3],['thumb.03.L',3,4]],
+                index:  [['finger_index.01.L',5,6],['finger_index.02.L',6,7],['finger_index.03.L',7,8]],
+                middle: [['finger_middle.01.L',9,10],['finger_middle.02.L',10,11],['finger_middle.03.L',11,12]],
+                ring:   [['finger_ring.01.L',13,14],['finger_ring.02.L',14,15],['finger_ring.03.L',15,16]],
+                pinky:  [['finger_pinky.01.L',17,18],['finger_pinky.02.L',18,19],['finger_pinky.03.L',19,20]]
+            },
+            R: {
+                thumb:  [['thumb.01.R',1,2],['thumb.02.R',2,3],['thumb.03.R',3,4]],
+                index:  [['finger_index.01.R',5,6],['finger_index.02.R',6,7],['finger_index.03.R',7,8]],
+                middle: [['finger_middle.01.R',9,10],['finger_middle.02.R',10,11],['finger_middle.03.R',11,12]],
+                ring:   [['finger_ring.01.R',13,14],['finger_ring.02.R',14,15],['finger_ring.03.R',15,16]],
+                pinky:  [['finger_pinky.01.R',17,18],['finger_pinky.02.R',18,19],['finger_pinky.03.R',19,20]]
+            }
+        };
 
-            const loader = new FBXLoader(mgr);
-            loader.load('models/rigged_hand.fbx',
-                (obj) => {
-                    obj.scale.setScalar(0.003);
-                    obj.visible = false;
-                    obj.traverse(child => {
-                        if (child.isMesh && child.material) {
+        function loadHandModel() {
+            const loader = new GLTFLoader();
+            loader.load('models/hand.glb',
+                (gltf) => {
+                    handModel = gltf.scene;
+                    handModel.visible = false;
+
+                    // Collect bones and meshes
+                    let meshIdx = 0;
+                    handModel.traverse(child => {
+                        if (child.isBone) {
+                            boneMap[child.name] = child;
+                        }
+                        if (child.isSkinnedMesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
-                            const mats = Array.isArray(child.material) ? child.material : [child.material];
-                            mats.forEach(m => { m.metalness = 0.15; m.roughness = 0.55; });
+                            child.frustumCulled = false;
+                            // First mesh = left hand, second = right hand
+                            if (meshIdx === 0) handMeshes.L = child;
+                            else handMeshes.R = child;
+                            meshIdx++;
                         }
                     });
-                    fbxModel = obj;
-                    scene.add(fbxModel);
-                    console.log('FBX model loaded');
+
+                    // Store rest pose data for each bone
+                    handModel.updateMatrixWorld(true);
+                    for (const [name, bone] of Object.entries(boneMap)) {
+                        restBoneData[name] = {
+                            quat: bone.quaternion.clone(),
+                            worldQuat: bone.getWorldQuaternion(new THREE.Quaternion())
+                        };
+                    }
+
+                    scene.add(handModel);
+                    console.log('GLB loaded, bones:', Object.keys(boneMap).length, 'meshes:', meshIdx);
                 },
                 undefined,
-                err => console.warn('FBX load (non-critical):', err)
+                err => console.warn('GLB load error:', err)
             );
         }
-        loadFBX();
+        loadHandModel();
 
-        function updateFBX(wl, show) {
-            if (!fbxModel) return;
-            if (!wl || !show) { fbxModel.visible = false; return; }
+        // Drive finger bones from MediaPipe landmarks
+        const _targetDir = new THREE.Vector3();
+        const _parentQ = new THREE.Quaternion();
+        const _localDir = new THREE.Vector3();
+        const _boneUp = new THREE.Vector3(0, 1, 0);
 
-            fbxModel.visible = true;
-            const w = wl[0], m9 = wl[9], m17 = wl[17], m5 = wl[5];
-            fbxModel.position.set(-w.x * SCALE, -w.y * SCALE, -w.z * SCALE);
+        function driveFingerBones(worldLms, side) {
+            const fingers = FINGER_BONES[side];
+            if (!fingers) return;
 
-            const up = new THREE.Vector3(-(m9.x-w.x), -(m9.y-w.y), -(m9.z-w.z)).normalize();
-            const side = new THREE.Vector3(-(m5.x-m17.x), -(m5.y-m17.y), -(m5.z-m17.z)).normalize();
-            const normal = new THREE.Vector3().crossVectors(up, side).normalize();
-            side.crossVectors(normal, up).normalize();
-            fbxModel.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, normal));
+            for (const chain of Object.values(fingers)) {
+                for (const [boneName, fromIdx, toIdx] of chain) {
+                    const bone = boneMap[boneName];
+                    if (!bone) continue;
 
-            const hs = Math.sqrt((m9.x-w.x)**2 + (m9.y-w.y)**2 + (m9.z-w.z)**2);
-            fbxModel.scale.setScalar(0.003 * (hs * SCALE) / 0.33);
+                    const from = worldLms[fromIdx];
+                    const to = worldLms[toIdx];
+                    _targetDir.set(
+                        -(to.x - from.x),
+                        -(to.y - from.y),
+                        -(to.z - from.z)
+                    ).normalize();
+
+                    // Get parent's current world quaternion
+                    if (bone.parent) {
+                        bone.parent.updateWorldMatrix(true, false);
+                        bone.parent.getWorldQuaternion(_parentQ);
+                    } else {
+                        _parentQ.identity();
+                    }
+
+                    // Target direction in parent's local space
+                    _localDir.copy(_targetDir).applyQuaternion(_parentQ.clone().invert());
+
+                    // Set bone to point local Y toward target
+                    bone.quaternion.setFromUnitVectors(_boneUp, _localDir);
+                }
+            }
+        }
+
+        function updateModel(worldLms, show, handedness) {
+            if (!handModel) return;
+            if (!worldLms || !show) { handModel.visible = false; return; }
+
+            handModel.visible = true;
+
+            // Determine which side (MediaPipe 'Right' label = user's right hand = mirrored in selfie)
+            const side = (handedness === 'Left') ? 'L' : 'L'; // both meshes seem to be L-rigged
+            if (handMeshes.L) handMeshes.L.visible = true;
+            if (handMeshes.R) handMeshes.R.visible = false;
+
+            // Position at wrist
+            const w = worldLms[0], m9 = worldLms[9], m17 = worldLms[17], m5 = worldLms[5];
+
+            // Hand orientation from palm vectors
+            const palmUp = new THREE.Vector3(-(m9.x-w.x), -(m9.y-w.y), -(m9.z-w.z)).normalize();
+            const palmSide = new THREE.Vector3(-(m5.x-m17.x), -(m5.y-m17.y), -(m5.z-m17.z)).normalize();
+            const palmNormal = new THREE.Vector3().crossVectors(palmUp, palmSide).normalize();
+            palmSide.crossVectors(palmNormal, palmUp).normalize();
+
+            // Set hand bone orientation
+            const handBone = boneMap['hand.L'] || boneMap['hand.R'];
+            if (handBone) {
+                // Position the root at wrist
+                const rootBone = handModel.children[0]; // Armature root
+                if (rootBone) {
+                    rootBone.position.set(-w.x * SCALE, -w.y * SCALE, -w.z * SCALE);
+                    // Scale to match hand size
+                    const hs = Math.sqrt((m9.x-w.x)**2 + (m9.y-w.y)**2 + (m9.z-w.z)**2);
+                    const s = (hs * SCALE) / 0.25;
+                    rootBone.scale.setScalar(s);
+                    // Orient the root
+                    rootBone.quaternion.setFromRotationMatrix(
+                        new THREE.Matrix4().makeBasis(palmSide, palmUp, palmNormal)
+                    );
+                }
+            }
+
+            // Drive individual finger bones
+            driveFingerBones(worldLms, side);
         }
 
         // ═══════════════════════════════════════════════════
@@ -793,7 +887,8 @@
                             showSkeleton: showSkel, showPalm, camMode: showCam
                         });
                         if (i === 0) {
-                            updateFBX(wls[i], showMdl);
+                            const handedness = latestResults.multiHandedness?.[i]?.label || 'Left';
+                            updateModel(wls[i], showMdl, handedness);
                             // Update depth indicator
                             if (showCam && depth !== null) {
                                 const pct = Math.min(100, Math.max(0, (depth / 0.45) * 100));
@@ -805,11 +900,11 @@
                         hands3d[i].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
                     }
                 }
-                if (wls.length === 0) updateFBX(null, false);
+                if (wls.length === 0) updateModel(null, false, 'Left');
             } else {
                 hands3d[0].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
                 hands3d[1].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
-                updateFBX(null, false);
+                updateModel(null, false, 'Left');
             }
 
             // Resize
