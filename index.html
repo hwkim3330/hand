@@ -35,22 +35,11 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        #loading h2 {
-            margin-top: 24px;
-            font-size: 18px; font-weight: 500;
-            color: #94a3b8;
-        }
-        #load-step {
-            margin-top: 8px;
-            font-size: 13px; color: #475569;
-        }
+        #loading h2 { margin-top: 24px; font-size: 18px; font-weight: 500; color: #94a3b8; }
+        #load-step { margin-top: 8px; font-size: 13px; color: #475569; }
 
         /* ── Canvas ── */
-        #three-canvas {
-            position: fixed; inset: 0;
-            width: 100%; height: 100%;
-            display: block;
-        }
+        #three-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
         /* ── Glass panels ── */
         .glass {
@@ -64,77 +53,42 @@
 
         /* ── Webcam PiP ── */
         #webcam-pip {
-            position: fixed;
-            bottom: 20px; left: 20px;
-            width: 280px;
-            border-radius: 14px;
-            overflow: hidden;
+            position: fixed; bottom: 20px; left: 20px;
+            width: 280px; border-radius: 14px; overflow: hidden;
             z-index: 20;
             border: 1px solid rgba(255,255,255,0.08);
             box-shadow: 0 8px 32px rgba(0,0,0,0.5);
             transition: transform 0.3s ease, opacity 0.3s ease;
         }
         #webcam-pip:hover { transform: scale(1.02); }
-        #webcam-pip.minimized {
-            width: 56px; height: 56px;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+        #webcam-pip.minimized { width: 56px; height: 56px; border-radius: 50%; cursor: pointer; }
         #webcam-pip.minimized video,
         #webcam-pip.minimized canvas,
         #webcam-pip.minimized .pip-badge { display: none; }
         #webcam-pip.minimized::after {
-            content: '📹';
-            position: absolute; inset: 0;
+            content: '\ud83d\udcf9'; position: absolute; inset: 0;
             display: flex; align-items: center; justify-content: center;
-            font-size: 22px;
-            background: rgba(10,15,28,0.85);
+            font-size: 22px; background: rgba(10,15,28,0.85);
         }
-        .pip-wrap {
-            position: relative;
-            aspect-ratio: 4/3;
-            background: #111;
-        }
-        #webcam {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            display: block;
-        }
-        #overlay {
-            position: absolute; inset: 0;
-            width: 100%; height: 100%;
-            transform: scaleX(-1);
-        }
+        .pip-wrap { position: relative; aspect-ratio: 4/3; background: #111; }
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+        #overlay { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); }
         .pip-badge {
-            position: absolute;
-            top: 8px; left: 8px;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(8px);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 500;
+            position: absolute; top: 8px; left: 8px;
+            background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 500;
             display: flex; align-items: center; gap: 6px;
         }
-        .pip-dot {
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
+        .pip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .pip-dot.on { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
         .pip-dot.off { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
         .pip-dot.err { background: #f87171; box-shadow: 0 0 8px #f87171; }
         .pip-toggle {
-            position: absolute;
-            top: 8px; right: 8px;
+            position: absolute; top: 8px; right: 8px;
             width: 26px; height: 26px;
-            background: rgba(0,0,0,0.5);
-            border: none;
-            border-radius: 50%;
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 14px;
+            background: rgba(0,0,0,0.5); border: none; border-radius: 50%;
+            color: #94a3b8; cursor: pointer; font-size: 14px;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s;
         }
@@ -142,111 +96,73 @@
 
         /* ── Info panel ── */
         #panel-info {
-            position: fixed;
-            top: 20px; left: 20px;
-            padding: 16px 20px;
-            z-index: 20;
-            min-width: 180px;
+            position: fixed; top: 20px; left: 20px;
+            padding: 16px 20px; z-index: 20; min-width: 180px;
         }
-        #panel-info h1 {
-            font-size: 15px; font-weight: 600;
-            margin-bottom: 12px;
-            display: flex; align-items: center; gap: 8px;
-        }
+        #panel-info h1 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
         #panel-info h1 .accent { color: #60a5fa; }
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 3px 0;
-            font-size: 12px;
-        }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
         .stat-label { color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-value { color: #e2e8f0; font-weight: 600; font-variant-numeric: tabular-nums; }
 
         /* ── Gesture ── */
         #gesture-display {
-            position: fixed;
-            top: 20px; left: 50%;
+            position: fixed; top: 20px; left: 50%;
             transform: translateX(-50%);
-            padding: 10px 24px;
-            z-index: 20;
-            font-size: 20px;
-            font-weight: 600;
-            opacity: 0;
-            transition: opacity 0.3s ease, transform 0.3s ease;
+            padding: 10px 24px; z-index: 20;
+            font-size: 20px; font-weight: 600;
+            opacity: 0; transition: opacity 0.3s ease;
             pointer-events: none;
         }
-        #gesture-display.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
+        #gesture-display.show { opacity: 1; }
 
         /* ── Controls ── */
         #panel-controls {
-            position: fixed;
-            bottom: 20px;
+            position: fixed; bottom: 20px;
             left: 50%; transform: translateX(-50%);
-            padding: 8px 10px;
-            display: flex; gap: 6px;
-            z-index: 20;
+            padding: 8px 10px; display: flex; gap: 6px; z-index: 20;
         }
         .ctrl-btn {
             background: transparent;
             border: 1px solid rgba(255,255,255,0.08);
-            color: #64748b;
-            padding: 8px 18px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            white-space: nowrap;
+            color: #64748b; padding: 8px 18px;
+            border-radius: 10px; cursor: pointer;
+            font-family: inherit; font-size: 12px; font-weight: 500;
+            transition: all 0.2s ease; white-space: nowrap;
         }
-        .ctrl-btn:hover {
-            color: #e2e8f0;
-            background: rgba(255,255,255,0.05);
-            border-color: rgba(255,255,255,0.15);
-        }
-        .ctrl-btn.active {
-            color: #60a5fa;
-            background: rgba(96,165,250,0.1);
-            border-color: rgba(96,165,250,0.3);
-        }
-        .ctrl-sep {
-            width: 1px;
-            background: rgba(255,255,255,0.08);
-            margin: 4px 4px;
-        }
+        .ctrl-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); }
+        .ctrl-btn.active { color: #60a5fa; background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); }
+        .ctrl-sep { width: 1px; background: rgba(255,255,255,0.08); margin: 4px 4px; }
 
         /* ── Finger legend ── */
-        #legend {
-            position: fixed;
-            top: 20px; right: 20px;
-            padding: 14px 18px;
-            z-index: 20;
+        #legend { position: fixed; top: 20px; right: 20px; padding: 14px 18px; z-index: 20; }
+        .legend-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 12px; color: #94a3b8; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+        /* ── Depth indicator ── */
+        #depth-bar {
+            position: fixed; right: 20px; bottom: 80px;
+            width: 8px; height: 120px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px; z-index: 20;
+            overflow: hidden;
+            display: none;
         }
-        .legend-title {
-            font-size: 11px; font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            margin-bottom: 10px;
+        #depth-fill {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, #60a5fa, #a78bfa);
+            border-radius: 4px;
+            transition: height 0.15s ease;
         }
-        .legend-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 3px 0;
-            font-size: 12px;
-            color: #94a3b8;
-        }
-        .legend-dot {
-            width: 10px; height: 10px;
-            border-radius: 3px;
-            flex-shrink: 0;
+        #depth-label {
+            position: fixed; right: 34px; bottom: 130px;
+            font-size: 10px; color: #64748b;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            writing-mode: vertical-rl; text-orientation: mixed;
+            display: none; z-index: 20;
         }
 
-        /* ── Responsive ── */
         @media (max-width: 640px) {
             #webcam-pip { width: 160px; bottom: 12px; left: 12px; }
             #panel-info { top: 12px; left: 12px; padding: 12px 14px; }
@@ -258,17 +174,14 @@
     </style>
 </head>
 <body>
-    <!-- Loading -->
     <div id="loading">
         <div class="loader-ring"></div>
         <h2>3D Hand Tracking</h2>
         <p id="load-step">Loading MediaPipe...</p>
     </div>
 
-    <!-- 3D Canvas (full-screen) -->
     <canvas id="three-canvas"></canvas>
 
-    <!-- Webcam PiP -->
     <div id="webcam-pip">
         <div class="pip-wrap">
             <video id="webcam" autoplay playsinline></video>
@@ -277,23 +190,21 @@
                 <div class="pip-dot off" id="pip-dot"></div>
                 <span id="pip-status">Starting...</span>
             </div>
-            <button class="pip-toggle" id="pip-min" title="Minimize">−</button>
+            <button class="pip-toggle" id="pip-min" title="Minimize">&minus;</button>
         </div>
     </div>
 
-    <!-- Info Panel -->
     <div id="panel-info" class="glass">
         <h1><span class="accent">Hand</span> Tracking</h1>
         <div class="stat-row"><span class="stat-label">FPS</span><span class="stat-value" id="s-fps">--</span></div>
         <div class="stat-row"><span class="stat-label">Hands</span><span class="stat-value" id="s-hands">0</span></div>
         <div class="stat-row"><span class="stat-label">Confidence</span><span class="stat-value" id="s-conf">--</span></div>
         <div class="stat-row"><span class="stat-label">Handedness</span><span class="stat-value" id="s-hand-type">--</span></div>
+        <div class="stat-row" id="depth-row" style="display:none"><span class="stat-label">Depth</span><span class="stat-value" id="s-depth">--</span></div>
     </div>
 
-    <!-- Gesture Display -->
     <div id="gesture-display" class="glass"></div>
 
-    <!-- Finger Legend -->
     <div id="legend" class="glass">
         <div class="legend-title">Fingers</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Thumb</div>
@@ -303,7 +214,9 @@
         <div class="legend-item"><div class="legend-dot" style="background:#74c0fc"></div>Pinky</div>
     </div>
 
-    <!-- Controls -->
+    <div id="depth-bar"><div id="depth-fill" style="height:0%"></div></div>
+    <div id="depth-label">Depth</div>
+
     <div id="panel-controls" class="glass">
         <button class="ctrl-btn active" data-mode="skeleton">Skeleton</button>
         <button class="ctrl-btn" data-mode="model">3D Model</button>
@@ -311,9 +224,9 @@
         <div class="ctrl-sep"></div>
         <button class="ctrl-btn active" data-toggle="grid">Grid</button>
         <button class="ctrl-btn" data-toggle="palm">Palm</button>
+        <button class="ctrl-btn" data-toggle="cam">Camera</button>
     </div>
 
-    <!-- MediaPipe (classic API) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
@@ -354,13 +267,8 @@
         ];
 
         const COLORS = {
-            wrist:  0xadb5bd,
-            thumb:  0xff6b6b,
-            index:  0xffa94d,
-            middle: 0xffd43b,
-            ring:   0x69db7c,
-            pinky:  0x74c0fc,
-            palm:   0x94a3b8
+            wrist: 0xadb5bd, thumb: 0xff6b6b, index: 0xffa94d,
+            middle: 0xffd43b, ring: 0x69db7c, pinky: 0x74c0fc, palm: 0x94a3b8
         };
 
         function jointColor(i) {
@@ -384,34 +292,37 @@
 
         const JOINT_R = [
             0.014,
-            0.010, 0.009, 0.007, 0.006,
-            0.010, 0.008, 0.006, 0.005,
-            0.010, 0.008, 0.006, 0.005,
-            0.009, 0.007, 0.006, 0.005,
-            0.008, 0.007, 0.005, 0.005
+            0.010,0.009,0.007,0.006,
+            0.010,0.008,0.006,0.005,
+            0.010,0.008,0.006,0.005,
+            0.009,0.007,0.006,0.005,
+            0.008,0.007,0.005,0.005
         ];
 
         const BONE_THICKNESS = [
-            0.005, 0.004, 0.0035, 0.003,
-            0.005, 0.004, 0.0035, 0.003,
-            0.005, 0.004, 0.0035, 0.003,
-            0.005, 0.004, 0.0035, 0.003,
-            0.005, 0.004, 0.0035, 0.003,
-            0.004, 0.004, 0.004, 0.005
+            0.005,0.004,0.0035,0.003,
+            0.005,0.004,0.0035,0.003,
+            0.005,0.004,0.0035,0.003,
+            0.005,0.004,0.0035,0.003,
+            0.005,0.004,0.0035,0.003,
+            0.004,0.004,0.004,0.005
         ];
 
         const SCALE = 3.0;
         const LERP = 0.5;
 
-        // Palm triangulation: landmark indices
+        // Palm mesh
         const PALM_VERTS = [0, 17, 13, 9, 5, 1];
         const PALM_TRIS  = [0,1,2, 0,2,3, 0,3,4, 0,4,5];
+
+        // Video plane dimensions (4:3 aspect)
+        const VP_W = 0.9, VP_H = 0.675, VP_Z = -0.35;
 
         // ═══════════════════════════════════════════════════
         //  THREE.JS SCENE
         // ═══════════════════════════════════════════════════
         const canvas = document.getElementById('three-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -421,32 +332,17 @@
 
         const scene = new THREE.Scene();
 
-        // Gradient background via large sphere
-        const bgGeo = new THREE.SphereGeometry(30, 32, 32);
+        // Gradient background
         const bgMat = new THREE.ShaderMaterial({
             uniforms: {
                 colorTop:    { value: new THREE.Color(0x0f1729) },
                 colorBottom: { value: new THREE.Color(0x06080d) }
             },
-            vertexShader: `
-                varying float vY;
-                void main() {
-                    vY = position.y;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 colorTop, colorBottom;
-                varying float vY;
-                void main() {
-                    float t = smoothstep(-30.0, 30.0, vY);
-                    gl_FragColor = vec4(mix(colorBottom, colorTop, t), 1.0);
-                }
-            `,
-            side: THREE.BackSide,
-            depthWrite: false
+            vertexShader: `varying float vY; void main(){ vY=position.y; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+            fragmentShader: `uniform vec3 colorTop,colorBottom; varying float vY; void main(){ float t=smoothstep(-30.0,30.0,vY); gl_FragColor=vec4(mix(colorBottom,colorTop,t),1.0); }`,
+            side: THREE.BackSide, depthWrite: false
         });
-        scene.add(new THREE.Mesh(bgGeo, bgMat));
+        scene.add(new THREE.Mesh(new THREE.SphereGeometry(30,32,32), bgMat));
 
         const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 60);
         camera.position.set(0, 0.1, 0.6);
@@ -460,35 +356,64 @@
 
         // ── Lighting ──
         scene.add(new THREE.AmbientLight(0x2a3a5c, 0.7));
-
-        const key = new THREE.DirectionalLight(0xffffff, 2.0);
-        key.position.set(4, 8, 6);
-        key.castShadow = true;
-        key.shadow.mapSize.set(1024, 1024);
-        key.shadow.camera.near = 0.1;
-        key.shadow.camera.far = 30;
-        key.shadow.bias = -0.001;
-        scene.add(key);
-
-        const fill = new THREE.DirectionalLight(0x7799cc, 0.6);
-        fill.position.set(-5, 3, -4);
-        scene.add(fill);
-
-        const rim = new THREE.PointLight(0xff7744, 0.4, 15);
-        rim.position.set(1, -4, -8);
-        scene.add(rim);
+        const keyL = new THREE.DirectionalLight(0xffffff, 2.0);
+        keyL.position.set(4, 8, 6);
+        keyL.castShadow = true;
+        keyL.shadow.mapSize.set(1024, 1024);
+        keyL.shadow.bias = -0.001;
+        scene.add(keyL);
+        scene.add(new THREE.DirectionalLight(0x7799cc, 0.6).translateX(-5).translateY(3).translateZ(-4));
+        scene.add(new THREE.PointLight(0xff7744, 0.4, 15).translateY(-4).translateZ(-8));
 
         // ── Grid ──
         const grid = new THREE.GridHelper(2.5, 40, 0x1a2035, 0x111828);
         grid.position.y = -0.22;
         scene.add(grid);
-
-        const groundMat = new THREE.ShadowMaterial({ opacity: 0.12 });
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), groundMat);
-        ground.rotation.x = -Math.PI / 2;
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(5,5), new THREE.ShadowMaterial({ opacity: 0.12 }));
+        ground.rotation.x = -Math.PI/2;
         ground.position.y = -0.22;
         ground.receiveShadow = true;
         scene.add(ground);
+
+        // ═══════════════════════════════════════════════════
+        //  VIDEO PLANE (Camera rectangle in 3D scene)
+        // ═══════════════════════════════════════════════════
+        const videoEl = document.getElementById('webcam');
+        const videoTexture = new THREE.VideoTexture(videoEl);
+        videoTexture.colorSpace = THREE.SRGBColorSpace;
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        // Mirror for selfie view
+        videoTexture.wrapS = THREE.RepeatWrapping;
+        videoTexture.repeat.x = -1;
+        videoTexture.offset.x = 1;
+
+        const camGroup = new THREE.Group();
+        camGroup.visible = false;
+
+        // Frame backing
+        const frameMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(VP_W + 0.025, VP_H + 0.025),
+            new THREE.MeshBasicMaterial({ color: 0x111828 })
+        );
+        frameMesh.position.z = -0.002;
+        camGroup.add(frameMesh);
+
+        // Video surface
+        const vpMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(VP_W, VP_H),
+            new THREE.MeshBasicMaterial({ map: videoTexture, toneMapped: false })
+        );
+        camGroup.add(vpMesh);
+
+        // Border glow
+        const borderEdges = new THREE.EdgesGeometry(new THREE.PlaneGeometry(VP_W, VP_H));
+        camGroup.add(new THREE.LineSegments(borderEdges,
+            new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.3 })
+        ));
+
+        camGroup.position.z = VP_Z;
+        scene.add(camGroup);
 
         // ═══════════════════════════════════════════════════
         //  HAND 3D
@@ -503,7 +428,6 @@
                 this.ready = false;
                 this.active = false;
 
-                // Joints
                 for (let i = 0; i < 21; i++) {
                     const c = jointColor(i);
                     const m = new THREE.Mesh(
@@ -518,7 +442,6 @@
                     this.joints.push(m);
                 }
 
-                // Bones
                 for (let ci = 0; ci < CONNECTIONS.length; ci++) {
                     const [a, b] = CONNECTIONS[ci];
                     const c = boneColor(a, b);
@@ -535,17 +458,12 @@
 
                 // Palm mesh
                 const palmGeo = new THREE.BufferGeometry();
-                const palmPos = new Float32Array(PALM_VERTS.length * 3);
-                palmGeo.setAttribute('position', new THREE.BufferAttribute(palmPos, 3));
+                palmGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PALM_VERTS.length * 3), 3));
                 palmGeo.setIndex(PALM_TRIS);
                 this.palmMesh = new THREE.Mesh(palmGeo, new THREE.MeshStandardMaterial({
-                    color: 0x94a3b8,
-                    metalness: 0.1,
-                    roughness: 0.6,
-                    transparent: true,
-                    opacity: 0.15,
-                    side: THREE.DoubleSide,
-                    depthWrite: false
+                    color: 0x94a3b8, metalness: 0.1, roughness: 0.6,
+                    transparent: true, opacity: 0.15,
+                    side: THREE.DoubleSide, depthWrite: false
                 }));
                 this.palmMesh.visible = false;
                 this.group.add(this.palmMesh);
@@ -554,20 +472,56 @@
                 scene.add(this.group);
             }
 
-            update(wl, showSkeleton, showPalm) {
-                if (!wl) {
+            update(worldLms, normLms, opts) {
+                const { showSkeleton, showPalm, camMode } = opts;
+
+                if (!worldLms) {
                     this.active = false;
                     this.group.visible = false;
-                    return;
+                    return null;
                 }
 
                 this.active = true;
                 this.group.visible = showSkeleton;
 
-                for (let i = 0; i < 21; i++) {
-                    this.tgt[i].set(-wl[i].x * SCALE, -wl[i].y * SCALE, -wl[i].z * SCALE);
+                let estimatedDepth = 0;
+
+                if (camMode && normLms) {
+                    // ── Camera mode: position relative to video plane ──
+                    const wn = normLms[0];
+                    const ww = worldLms[0];
+
+                    // Depth from apparent hand size
+                    const apparentSize = Math.sqrt(
+                        (normLms[0].x - normLms[9].x) ** 2 +
+                        (normLms[0].y - normLms[9].y) ** 2
+                    );
+                    // Larger apparent size = closer = more in front
+                    const depthOff = Math.max(0.03, Math.min(apparentSize * 1.8, 0.45));
+                    estimatedDepth = depthOff;
+
+                    // Wrist position on video plane (mirrored x, centered y)
+                    const sx = (0.5 - wn.x) * VP_W;
+                    const sy = (0.5 - wn.y) * VP_H;
+                    const sz = VP_Z + depthOff;
+
+                    for (let i = 0; i < 21; i++) {
+                        const wl = worldLms[i];
+                        this.tgt[i].set(
+                            sx + (-(wl.x - ww.x)) * SCALE,
+                            sy + (-(wl.y - ww.y)) * SCALE,
+                            sz + (-(wl.z - ww.z)) * SCALE
+                        );
+                    }
+                } else {
+                    // ── Center mode: world landmarks at origin ──
+                    for (let i = 0; i < 21; i++) {
+                        const wl = worldLms[i];
+                        this.tgt[i].set(-wl.x * SCALE, -wl.y * SCALE, -wl.z * SCALE);
+                    }
                 }
 
+                // Lerp
                 const f = this.ready ? LERP : 1.0;
                 for (let i = 0; i < 21; i++) {
                     this.pos[i].lerp(this.tgt[i], f);
@@ -575,6 +529,7 @@
                 }
                 this.ready = true;
 
+                // Bones
                 const _d = new THREE.Vector3();
                 const _up = new THREE.Vector3(0, 1, 0);
                 for (const b of this.bones) {
@@ -597,6 +552,8 @@
                     attr.needsUpdate = true;
                     this.palmMesh.geometry.computeVertexNormals();
                 }
+
+                return estimatedDepth;
             }
         }
 
@@ -606,13 +563,13 @@
         //  FBX MODEL
         // ═══════════════════════════════════════════════════
         let fbxModel = null;
-        let fbxReady = false;
 
         function loadFBX() {
             const mgr = new THREE.LoadingManager();
             mgr.setURLModifier(url => {
-                // FBX stores texture names at same dir level. Fix path + space in "HAND_N .jpg"
-                const m = url.match(/(HAND_\w+?)(%20)?\.jpg$/i);
+                // FBX stores texture paths with literal space: "HAND_N .jpg"
+                // Match both literal space and %20 encoded space
+                const m = url.match(/(HAND_\w+?)(?:\s|%20)?\.jpg$/i);
                 if (m) return `models/textures/${m[1]}.jpg`;
                 return url;
             });
@@ -623,29 +580,21 @@
                     obj.scale.setScalar(0.003);
                     obj.visible = false;
                     obj.traverse(child => {
-                        if (child.isMesh) {
+                        if (child.isMesh && child.material) {
                             child.castShadow = true;
                             child.receiveShadow = true;
-                            if (child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(m => { m.metalness = 0.15; m.roughness = 0.55; });
-                                } else {
-                                    child.material.metalness = 0.15;
-                                    child.material.roughness = 0.55;
-                                }
-                            }
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            mats.forEach(m => { m.metalness = 0.15; m.roughness = 0.55; });
                         }
                     });
                     fbxModel = obj;
-                    fbxReady = true;
                     scene.add(fbxModel);
                     console.log('FBX model loaded');
                 },
                 undefined,
-                err => console.warn('FBX load error (non-critical):', err)
+                err => console.warn('FBX load (non-critical):', err)
             );
         }
-
         loadFBX();
 
         function updateFBX(wl, show) {
@@ -653,30 +602,17 @@
             if (!wl || !show) { fbxModel.visible = false; return; }
 
             fbxModel.visible = true;
-
-            // Position at wrist
             const w = wl[0], m9 = wl[9], m17 = wl[17], m5 = wl[5];
             fbxModel.position.set(-w.x * SCALE, -w.y * SCALE, -w.z * SCALE);
 
-            // Orientation: palm up direction + palm normal
-            const up = new THREE.Vector3(
-                -(m9.x - w.x), -(m9.y - w.y), -(m9.z - w.z)
-            ).normalize();
-            const side = new THREE.Vector3(
-                -(m5.x - m17.x), -(m5.y - m17.y), -(m5.z - m17.z)
-            ).normalize();
+            const up = new THREE.Vector3(-(m9.x-w.x), -(m9.y-w.y), -(m9.z-w.z)).normalize();
+            const side = new THREE.Vector3(-(m5.x-m17.x), -(m5.y-m17.y), -(m5.z-m17.z)).normalize();
             const normal = new THREE.Vector3().crossVectors(up, side).normalize();
             side.crossVectors(normal, up).normalize();
+            fbxModel.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, normal));
 
-            const mat4 = new THREE.Matrix4().makeBasis(side, up, normal);
-            fbxModel.quaternion.setFromRotationMatrix(mat4);
-
-            // Scale to match hand size
-            const handSize = Math.sqrt(
-                (m9.x - w.x) ** 2 + (m9.y - w.y) ** 2 + (m9.z - w.z) ** 2
-            );
-            const s = (handSize * SCALE) / 0.33;
-            fbxModel.scale.setScalar(0.003 * s);
+            const hs = Math.sqrt((m9.x-w.x)**2 + (m9.y-w.y)**2 + (m9.z-w.z)**2);
+            fbxModel.scale.setScalar(0.003 * (hs * SCALE) / 0.33);
         }
 
         // ═══════════════════════════════════════════════════
@@ -688,39 +624,27 @@
         function detectGesture(wl) {
             if (!wl) return null;
             const w = wl[0];
-            const tips = [4, 8, 12, 16, 20];
-            const pips = [3, 6, 10, 14, 18];
-            const d = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
-
+            const tips = [4, 8, 12, 16, 20], pips = [3, 6, 10, 14, 18];
+            const d = (a, b) => Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2);
             const ext = tips.map((t, i) => d(wl[t], w) > d(wl[pips[i]], w) * 1.12);
             const n = ext.filter(Boolean).length;
-
             if (n === 5) return "\u270b Open";
             if (n === 0) return "\u270a Fist";
             if (ext[0] && n === 1) return "\ud83d\udc4d Thumbs Up";
             if (!ext[0] && ext[1] && ext[2] && !ext[3] && !ext[4]) return "\u270c\ufe0f Peace";
             if (!ext[0] && ext[1] && !ext[2] && !ext[3] && !ext[4]) return "\u261d\ufe0f Point";
             if (!ext[0] && ext[1] && !ext[2] && !ext[3] && ext[4]) return "\ud83e\udd1f Rock";
-
-            const thumbIdx = d(wl[4], wl[8]);
-            const palmSize = d(w, wl[9]);
-            if (thumbIdx < palmSize * 0.28 && ext[2] && ext[3] && ext[4]) return "\ud83d\udc4c OK";
-
+            const td = d(wl[4], wl[8]), ps = d(w, wl[9]);
+            if (td < ps * 0.28 && ext[2] && ext[3] && ext[4]) return "\ud83d\udc4c OK";
             return null;
         }
 
         function showGesture(g) {
             if (!g) {
-                if (!gestureTimeout) {
-                    gestureTimeout = setTimeout(() => {
-                        gestureEl.classList.remove('show');
-                        gestureTimeout = null;
-                    }, 600);
-                }
+                if (!gestureTimeout) gestureTimeout = setTimeout(() => { gestureEl.classList.remove('show'); gestureTimeout = null; }, 600);
                 return;
             }
-            clearTimeout(gestureTimeout);
-            gestureTimeout = null;
+            clearTimeout(gestureTimeout); gestureTimeout = null;
             gestureEl.textContent = g;
             gestureEl.classList.add('show');
         }
@@ -728,54 +652,42 @@
         // ═══════════════════════════════════════════════════
         //  MEDIAPIPE
         // ═══════════════════════════════════════════════════
-        const videoEl = document.getElementById('webcam');
         const overlayCanvas = document.getElementById('overlay');
         const overlayCtx = overlayCanvas.getContext('2d');
 
         let latestResults = null;
-        let fpsCount = 0;
-        let fpsTime = performance.now();
+        let fpsCount = 0, fpsTime = performance.now();
 
         document.getElementById('load-step').textContent = 'Initializing MediaPipe...';
 
         const mpHands = new window.Hands({
             locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
         });
-
         mpHands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.5
+            maxNumHands: 2, modelComplexity: 1,
+            minDetectionConfidence: 0.7, minTrackingConfidence: 0.5
         });
 
         mpHands.onResults(results => {
             latestResults = results;
 
-            // Draw overlay
             overlayCanvas.width = results.image.width;
             overlayCanvas.height = results.image.height;
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
             if (results.multiHandLandmarks) {
                 for (const lms of results.multiHandLandmarks) {
-                    window.drawConnectors(overlayCtx, lms, DRAW_CONNECTIONS, {
-                        color: 'rgba(96,165,250,0.45)', lineWidth: 2
-                    });
-                    window.drawLandmarks(overlayCtx, lms, {
-                        color: 'rgba(255,255,255,0.65)', lineWidth: 1, radius: 2
-                    });
+                    window.drawConnectors(overlayCtx, lms, DRAW_CONNECTIONS, { color: 'rgba(96,165,250,0.45)', lineWidth: 2 });
+                    window.drawLandmarks(overlayCtx, lms, { color: 'rgba(255,255,255,0.65)', lineWidth: 1, radius: 2 });
                 }
             }
 
-            // Stats
             const nh = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
             document.getElementById('s-hands').textContent = nh;
-
             if (nh > 0) {
                 const h = results.multiHandedness[0];
                 document.getElementById('s-conf').textContent = (h.score * 100).toFixed(0) + '%';
-                document.getElementById('s-hand-type').textContent = h.label === 'Right' ? 'Right' : 'Left';
+                document.getElementById('s-hand-type').textContent = h.label;
                 setPipStatus('on', 'Tracking');
             } else {
                 document.getElementById('s-conf').textContent = '--';
@@ -783,32 +695,23 @@
                 setPipStatus('off', 'No hand');
             }
 
-            // Gesture
             if (results.multiHandWorldLandmarks && results.multiHandWorldLandmarks.length > 0) {
                 showGesture(detectGesture(results.multiHandWorldLandmarks[0]));
-            } else {
-                showGesture(null);
-            }
+            } else { showGesture(null); }
 
-            // FPS
             fpsCount++;
             const now = performance.now();
             if (now - fpsTime >= 1000) {
                 document.getElementById('s-fps').textContent = fpsCount;
-                fpsCount = 0;
-                fpsTime = now;
+                fpsCount = 0; fpsTime = now;
             }
         });
 
-        // Camera
         document.getElementById('load-step').textContent = 'Requesting camera...';
-
         const mpCam = new window.Camera(videoEl, {
             onFrame: async () => { await mpHands.send({ image: videoEl }); },
-            width: 640,
-            height: 480
+            width: 640, height: 480
         });
-
         mpCam.start().then(() => {
             setPipStatus('on', 'Ready');
             const ld = document.getElementById('loading');
@@ -817,30 +720,26 @@
         }).catch(err => {
             console.error('Camera error:', err);
             setPipStatus('err', 'Camera denied');
-            document.getElementById('load-step').textContent = 'Camera access denied. Please allow camera.';
+            document.getElementById('load-step').textContent = 'Camera access denied.';
         });
 
         // ═══════════════════════════════════════════════════
         //  UI CONTROLS
         // ═══════════════════════════════════════════════════
         function setPipStatus(cls, text) {
-            const dot = document.getElementById('pip-dot');
-            dot.className = 'pip-dot ' + cls;
+            document.getElementById('pip-dot').className = 'pip-dot ' + cls;
             document.getElementById('pip-status').textContent = text;
         }
 
-        // PiP minimize
         document.getElementById('pip-min').addEventListener('click', () => {
             document.getElementById('webcam-pip').classList.toggle('minimized');
         });
-        document.getElementById('webcam-pip').addEventListener('click', function(e) {
+        document.getElementById('webcam-pip').addEventListener('click', function() {
             if (this.classList.contains('minimized')) this.classList.remove('minimized');
         });
 
-        // View mode
         let viewMode = 'skeleton';
-        let showPalm = false;
-        let showGrid = true;
+        let showPalm = false, showCam = false;
 
         document.querySelectorAll('.ctrl-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -850,16 +749,26 @@
             });
         });
 
+        const depthBar = document.getElementById('depth-bar');
+        const depthFill = document.getElementById('depth-fill');
+        const depthLabel = document.getElementById('depth-label');
+        const depthRow = document.getElementById('depth-row');
+
         document.querySelectorAll('.ctrl-btn[data-toggle]').forEach(btn => {
             btn.addEventListener('click', () => {
                 btn.classList.toggle('active');
                 const on = btn.classList.contains('active');
                 if (btn.dataset.toggle === 'grid') {
-                    showGrid = on;
                     grid.visible = on;
                     ground.visible = on;
                 } else if (btn.dataset.toggle === 'palm') {
                     showPalm = on;
+                } else if (btn.dataset.toggle === 'cam') {
+                    showCam = on;
+                    camGroup.visible = on;
+                    depthBar.style.display = on ? 'block' : 'none';
+                    depthLabel.style.display = on ? 'block' : 'none';
+                    depthRow.style.display = on ? 'flex' : 'none';
                 }
             });
         });
@@ -876,24 +785,35 @@
 
             if (latestResults && latestResults.multiHandWorldLandmarks) {
                 const wls = latestResults.multiHandWorldLandmarks;
+                const nls = latestResults.multiHandLandmarks;
+
                 for (let i = 0; i < 2; i++) {
                     if (i < wls.length) {
-                        hands3d[i].update(wls[i], showSkel, showPalm);
-                        if (i === 0) updateFBX(wls[i], showMdl);
+                        const depth = hands3d[i].update(wls[i], nls ? nls[i] : null, {
+                            showSkeleton: showSkel, showPalm, camMode: showCam
+                        });
+                        if (i === 0) {
+                            updateFBX(wls[i], showMdl);
+                            // Update depth indicator
+                            if (showCam && depth !== null) {
+                                const pct = Math.min(100, Math.max(0, (depth / 0.45) * 100));
+                                depthFill.style.height = pct + '%';
+                                document.getElementById('s-depth').textContent = (depth * 100).toFixed(0) + 'cm';
+                            }
+                        }
                     } else {
-                        hands3d[i].update(null, false, false);
+                        hands3d[i].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
                     }
                 }
                 if (wls.length === 0) updateFBX(null, false);
             } else {
-                hands3d[0].update(null, false, false);
-                hands3d[1].update(null, false, false);
+                hands3d[0].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
+                hands3d[1].update(null, null, { showSkeleton: false, showPalm: false, camMode: false });
                 updateFBX(null, false);
             }
 
             // Resize
-            const w = window.innerWidth;
-            const h = window.innerHeight;
+            const w = window.innerWidth, h = window.innerHeight;
             if (canvas.width !== w * devicePixelRatio || canvas.height !== h * devicePixelRatio) {
                 renderer.setSize(w, h);
                 camera.aspect = w / h;
